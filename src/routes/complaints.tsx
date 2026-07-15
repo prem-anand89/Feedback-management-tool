@@ -4,15 +4,21 @@ import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { AlertCircle, CheckCircle } from 'lucide-react'
-import { mockComplaints } from '@/lib/mock-data'
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'
+import { useQuery, useMutation, useConvexAuth } from 'convex/react'
+import { api } from '../../convex/_generated/api'
 
 function ComplaintsPage() {
-  const [complaints, setComplaints] = useState(mockComplaints)
-  const [selectedId, setSelectedId] = useState<string | null>(mockComplaints[0]?.id)
-  const selected = selectedId ? complaints.find((c) => c.id === selectedId) : null
+  const { isAuthenticated } = useConvexAuth()
+  const complaints = useQuery(api.complaints.listComplaints, isAuthenticated ? {} : 'skip') ?? []
+  const updateComplaintStatus = useMutation(api.complaints.updateComplaintStatus)
+  const addComplaintNote = useMutation(api.complaints.addComplaintNote)
 
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [noteText, setNoteText] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const selected = selectedId ? complaints.find((c) => c._id === selectedId) : null
   const statuses = ['pending', 'in-progress', 'resolved', 'closed'] as const
   const statusColors = {
     pending: 'bg-yellow-100 text-yellow-800',
@@ -21,10 +27,36 @@ function ComplaintsPage() {
     closed: 'bg-gray-100 text-gray-800',
   }
 
-  const getComplaints = (status: typeof statuses[number]) => complaints.filter((c) => c.status === status)
+  const getComplaints = (status: typeof statuses[number]) =>
+    complaints.filter((c) => c.status === status)
 
-  const updateComplaintStatus = (id: string, newStatus: typeof statuses[number]) => {
-    setComplaints((prevComplaints) => prevComplaints.map((c) => (c.id === id ? { ...c, status: newStatus } : c)))
+  const handleUpdateStatus = async (newStatus: typeof statuses[number]) => {
+    if (!selected) return
+    setIsLoading(true)
+    setError('')
+    try {
+      await updateComplaintStatus({ complaintId: selected._id as any, status: newStatus })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update status')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleAddNote = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selected || !noteText.trim()) return
+
+    setIsLoading(true)
+    setError('')
+    try {
+      await addComplaintNote({ complaintId: selected._id as any, note: noteText.trim() })
+      setNoteText('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add note')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -54,17 +86,23 @@ function ComplaintsPage() {
                         ) : (
                           statusComplaints.map((complaint) => (
                             <button
-                              key={complaint.id}
-                              onClick={() => setSelectedId(complaint.id)}
+                              key={complaint._id}
+                              onClick={() => setSelectedId(complaint._id)}
                               className={`w-full rounded border p-3 text-left text-sm transition-colors ${
-                                selectedId === complaint.id ? 'border-primary bg-primary/5' : 'border-input hover:bg-accent'
+                                selectedId === complaint._id
+                                  ? 'border-primary bg-primary/5'
+                                  : 'border-input hover:bg-accent'
                               }`}
                             >
                               <div className="flex items-start justify-between">
-                                <p className="font-medium">{complaint.patientName}</p>
-                                <span className={`rounded px-2 py-1 text-xs font-medium ${statusColors[status]}`}>{status}</span>
+                                <p className="font-medium">Patient {complaint.patientId.slice(0, 8)}</p>
+                                <span className={`rounded px-2 py-1 text-xs font-medium ${statusColors[status]}`}>
+                                  {status}
+                                </span>
                               </div>
-                              <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{complaint.feedback}</p>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Priority: {complaint.priority}
+                              </p>
                             </button>
                           ))
                         )}
@@ -80,13 +118,9 @@ function ComplaintsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Complaint Details</CardTitle>
-                <CardDescription>{selected.patientName}</CardDescription>
+                <CardDescription>Patient {selected.patientId.slice(0, 8)}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Patient</p>
-                  <p className="font-medium">{selected.patientName}</p>
-                </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Priority</p>
                   <div className="mt-1">
@@ -107,10 +141,13 @@ function ComplaintsPage() {
                   <p className="text-sm font-medium text-muted-foreground">Current Status</p>
                   <p className="mt-1 font-medium capitalize">{selected.status.replace('-', ' ')}</p>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Feedback</p>
-                  <p className="mt-1 text-sm">{selected.feedback}</p>
-                </div>
+
+                {error && (
+                  <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
+                    {error}
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-muted-foreground">Change Status</p>
                   <div className="space-y-2">
@@ -120,13 +157,29 @@ function ComplaintsPage() {
                         variant={selected.status === status ? 'default' : 'outline'}
                         size="sm"
                         className="w-full capitalize"
-                        onClick={() => updateComplaintStatus(selected.id, status)}
+                        onClick={() => handleUpdateStatus(status)}
+                        disabled={isLoading}
                       >
                         {status.replace('-', ' ')}
                       </Button>
                     ))}
                   </div>
                 </div>
+
+                <form onSubmit={handleAddNote} className="space-y-2">
+                  <label className="text-sm font-medium">Add Note</label>
+                  <textarea
+                    placeholder="Add a note..."
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    disabled={isLoading}
+                    rows={3}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50"
+                  />
+                  <Button type="submit" size="sm" disabled={isLoading || !noteText.trim()}>
+                    {isLoading ? 'Adding...' : 'Add Note'}
+                  </Button>
+                </form>
               </CardContent>
             </Card>
           )}

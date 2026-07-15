@@ -20,7 +20,7 @@ function SignUpPage() {
         </div>
 
         <SignUp
-          afterSignUpUrl="/dashboard"
+          afterSignUpUrl="/setup"
           signInUrl="/login"
         />
       </div>
