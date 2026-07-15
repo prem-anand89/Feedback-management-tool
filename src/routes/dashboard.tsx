@@ -4,19 +4,17 @@ import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { MessageSquare, AlertCircle, CheckCircle, Star, ThumbsUp } from 'lucide-react'
-import { useUser } from '@clerk/clerk-react'
-import { useQuery } from 'convex/react'
+import { useQuery, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { monthlyTrendData } from '@/lib/mock-data'
 
 function DashboardPage() {
-  const { user } = useUser()
-  const staffUser = useQuery(api.clinics.getStaffUser, user ? { userId: user.id } : 'skip')
-  const clinicId = staffUser?.clinicId
+  const { isAuthenticated } = useConvexAuth()
+  const staffUser = useQuery(api.clinics.getMyStaffUser, isAuthenticated ? {} : 'skip')
 
-  const feedbackRequests = useQuery(api.feedback.listFeedbackRequests, clinicId ? { clinicId } : 'skip') ?? []
-  const feedbackResponses = useQuery(api.feedback.listFeedbackResponses, clinicId ? { clinicId } : 'skip') ?? []
-  const complaints = useQuery(api.complaints.listComplaints, clinicId ? { clinicId } : 'skip') ?? []
+  const feedbackRequests = useQuery(api.feedback.listFeedbackRequests, staffUser ? {} : 'skip') ?? []
+  const feedbackResponses = useQuery(api.feedback.listFeedbackResponses, staffUser ? {} : 'skip') ?? []
+  const complaints = useQuery(api.complaints.listComplaints, staffUser ? {} : 'skip') ?? []
 
   const todayFeedback = feedbackRequests.filter((f) => {
     const today = new Date()
@@ -39,6 +37,19 @@ function DashboardPage() {
       timestamp: new Date(f.submittedAt).toLocaleString(),
     })),
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 5)
+
+  if (isAuthenticated && staffUser === null) {
+    return (
+      <StaffLayout>
+        <Card>
+          <CardHeader>
+            <CardTitle>No clinic set up yet</CardTitle>
+            <CardDescription>Your account isn't linked to a clinic. Set one up to start collecting feedback.</CardDescription>
+          </CardHeader>
+        </Card>
+      </StaffLayout>
+    )
+  }
 
   return (
     <StaffLayout>

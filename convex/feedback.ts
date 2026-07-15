@@ -1,6 +1,7 @@
 import { mutation, query, internalMutation, internalAction } from './_generated/server'
 import { v } from 'convex/values'
 import { internal } from './_generated/api'
+import { requireStaffUser } from './lib/auth'
 
 export const generateToken = () => {
   return crypto
@@ -9,21 +10,23 @@ export const generateToken = () => {
 }
 
 export const listFeedbackRequests = query({
-  args: { clinicId: v.id('clinics') },
-  handler: async (ctx, { clinicId }) => {
+  args: {},
+  handler: async (ctx) => {
+    const staffUser = await requireStaffUser(ctx)
     return await ctx.db
       .query('feedbackRequests')
-      .withIndex('by_clinic', (q) => q.eq('clinicId', clinicId))
+      .withIndex('by_clinic', (q) => q.eq('clinicId', staffUser.clinicId))
       .collect()
   },
 })
 
 export const listFeedbackResponses = query({
-  args: { clinicId: v.id('clinics') },
-  handler: async (ctx, { clinicId }) => {
+  args: {},
+  handler: async (ctx) => {
+    const staffUser = await requireStaffUser(ctx)
     return await ctx.db
       .query('feedbackResponses')
-      .withIndex('by_clinic', (q) => q.eq('clinicId', clinicId))
+      .withIndex('by_clinic', (q) => q.eq('clinicId', staffUser.clinicId))
       .collect()
   },
 })
@@ -31,7 +34,10 @@ export const listFeedbackResponses = query({
 export const getFeedbackResponse = query({
   args: { responseId: v.id('feedbackResponses') },
   handler: async (ctx, { responseId }) => {
-    return await ctx.db.get(responseId)
+    const staffUser = await requireStaffUser(ctx)
+    const response = await ctx.db.get(responseId)
+    if (!response || response.clinicId !== staffUser.clinicId) return null
+    return response
   },
 })
 
@@ -107,6 +113,9 @@ export const submitFeedback = mutation({
   handler: async (ctx, { feedbackRequestId, rating, satisfaction, explanationClarity, treatmentHelpfulness, recommendation, comments }) => {
     const feedbackRequest = await ctx.db.get(feedbackRequestId)
     if (!feedbackRequest) throw new Error('Feedback request not found')
+    if (feedbackRequest.status === 'responded') {
+      throw new Error('This feedback link has already been submitted')
+    }
 
     const visit = await ctx.db.get(feedbackRequest.visitId)
     if (!visit) throw new Error('Visit not found')

@@ -22,7 +22,7 @@ const visitComplete = httpAction(async (ctx, request) => {
       })
     }
 
-    const result = await ctx.runMutation(internal.visits.completeVisit, {
+    const result = await ctx.runMutation(internal.visits.completeVisitInternal, {
       visitId,
     })
 

@@ -1,8 +1,9 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
-import { ClerkProvider } from '@clerk/clerk-react'
-import { ConvexProvider, ConvexReactClient } from 'convex/react'
+import { ClerkProvider, useAuth } from '@clerk/clerk-react'
+import { ConvexReactClient } from 'convex/react'
+import { ConvexProviderWithClerk } from 'convex/react-clerk'
 import { routeTree } from './routeTree.gen'
 import './index.css'
 
@@ -18,9 +19,9 @@ declare module '@tanstack/react-router' {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ClerkProvider publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>
-      <ConvexProvider client={convex}>
+      <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
         <RouterProvider router={router} />
-      </ConvexProvider>
+      </ConvexProviderWithClerk>
     </ClerkProvider>
   </React.StrictMode>,
 )

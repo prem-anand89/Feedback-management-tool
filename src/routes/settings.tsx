@@ -5,8 +5,7 @@ import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useUser } from '@clerk/clerk-react'
-import { useQuery } from 'convex/react'
+import { useQuery, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 
 interface ClinicSettings {
@@ -19,8 +18,8 @@ interface ClinicSettings {
 }
 
 function SettingsPage() {
-  const { user } = useUser()
-  const staffUser = useQuery(api.clinics.getStaffUser, user ? { userId: user.id } : 'skip')
+  const { isAuthenticated } = useConvexAuth()
+  const staffUser = useQuery(api.clinics.getMyStaffUser, isAuthenticated ? {} : 'skip')
   const [settings, setSettings] = useState<ClinicSettings>({
     clinicName: 'Beyond Mechanics Wellness',
     feedbackDelay: '24',

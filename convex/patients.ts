@@ -1,12 +1,14 @@
 import { mutation, query } from './_generated/server'
 import { v } from 'convex/values'
+import { requireStaffUser } from './lib/auth'
 
 export const listPatients = query({
-  args: { clinicId: v.id('clinics') },
-  handler: async (ctx, { clinicId }) => {
+  args: {},
+  handler: async (ctx) => {
+    const staffUser = await requireStaffUser(ctx)
     return await ctx.db
       .query('patients')
-      .withIndex('by_clinic', (q) => q.eq('clinicId', clinicId))
+      .withIndex('by_clinic', (q) => q.eq('clinicId', staffUser.clinicId))
       .collect()
   },
 })
@@ -14,20 +16,23 @@ export const listPatients = query({
 export const getPatient = query({
   args: { patientId: v.id('patients') },
   handler: async (ctx, { patientId }) => {
-    return await ctx.db.get(patientId)
+    const staffUser = await requireStaffUser(ctx)
+    const patient = await ctx.db.get(patientId)
+    if (!patient || patient.clinicId !== staffUser.clinicId) return null
+    return patient
   },
 })
 
 export const createPatient = mutation({
   args: {
-    clinicId: v.id('clinics'),
     name: v.string(),
     email: v.string(),
     phone: v.string(),
   },
-  handler: async (ctx, { clinicId, name, email, phone }) => {
+  handler: async (ctx, { name, email, phone }) => {
+    const staffUser = await requireStaffUser(ctx)
     const patientId = await ctx.db.insert('patients', {
-      clinicId,
+      clinicId: staffUser.clinicId,
       name,
       email,
       phone,

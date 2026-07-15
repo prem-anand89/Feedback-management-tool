@@ -1,11 +1,13 @@
 import { mutation, query, internalMutation, internalAction } from './_generated/server'
 import { v } from 'convex/values'
 import { internal } from './_generated/api'
+import { requireStaffUser } from './lib/auth'
 
 export const listComplaints = query({
-  args: { clinicId: v.id('clinics'), status: v.optional(v.string()) },
-  handler: async (ctx, { clinicId, status }) => {
-    const query = ctx.db.query('complaints').withIndex('by_clinic', (q) => q.eq('clinicId', clinicId))
+  args: { status: v.optional(v.string()) },
+  handler: async (ctx, { status }) => {
+    const staffUser = await requireStaffUser(ctx)
+    const query = ctx.db.query('complaints').withIndex('by_clinic', (q) => q.eq('clinicId', staffUser.clinicId))
 
     if (status) {
       // Note: Convex doesn't have a way to filter further after index, so we collect and filter in memory for MVP
@@ -20,7 +22,10 @@ export const listComplaints = query({
 export const getComplaint = query({
   args: { complaintId: v.id('complaints') },
   handler: async (ctx, { complaintId }) => {
-    return await ctx.db.get(complaintId)
+    const staffUser = await requireStaffUser(ctx)
+    const complaint = await ctx.db.get(complaintId)
+    if (!complaint || complaint.clinicId !== staffUser.clinicId) return null
+    return complaint
   },
 })
 
@@ -75,6 +80,12 @@ export const updateComplaintStatus = mutation({
     status: v.union(v.literal('pending'), v.literal('in-progress'), v.literal('resolved'), v.literal('closed')),
   },
   handler: async (ctx, { complaintId, status }) => {
+    const staffUser = await requireStaffUser(ctx)
+    const complaint = await ctx.db.get(complaintId)
+    if (!complaint || complaint.clinicId !== staffUser.clinicId) {
+      throw new Error('Complaint not found')
+    }
+
     await ctx.db.patch(complaintId, { status, updatedAt: Date.now() })
     return complaintId
   },
@@ -84,15 +95,17 @@ export const addComplaintNote = mutation({
   args: {
     complaintId: v.id('complaints'),
     note: v.string(),
-    authorId: v.id('staffUsers'),
   },
-  handler: async (ctx, { complaintId, note, authorId }) => {
+  handler: async (ctx, { complaintId, note }) => {
+    const staffUser = await requireStaffUser(ctx)
     const complaint = await ctx.db.get(complaintId)
-    if (!complaint) throw new Error('Complaint not found')
+    if (!complaint || complaint.clinicId !== staffUser.clinicId) {
+      throw new Error('Complaint not found')
+    }
 
     const notes = JSON.parse(complaint.notes)
     notes.push({
-      author: authorId,
+      author: staffUser._id,
       timestamp: Date.now(),
       text: note,
     })
