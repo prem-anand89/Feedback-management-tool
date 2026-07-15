@@ -1,0 +1,816 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2580
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fnil\fcharset0 LucidaGrande;\f2\fnil\fcharset134 PingFangSC-Regular;
+\f3\fnil\fcharset0 AppleColorEmoji;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 # TheraNet \'96 Patient Feedback & Reputation Management Module\
+**Version:** 0.1 (Planning Draft)  \
+**Status:** Product Requirements Document (PRD)  \
+**Module Owner:** TheraNet Team\
+\
+---\
+\
+# 1. Overview\
+\
+## Purpose\
+\
+The Patient Feedback Module is designed to automate patient follow-ups after treatment, improve patient satisfaction, identify service issues early, collect actionable feedback, and help clinics build a stronger online reputation through ethical Google Review requests.\
+\
+The module should work seamlessly inside the TheraNet ecosystem without interrupting the therapist's workflow.\
+\
+---\
+\
+# 2. Goals\
+\
+- Improve patient engagement after every visit\
+- Automate post-treatment follow-up\
+- Measure patient satisfaction\
+- Detect unhappy patients early\
+- Notify therapists when intervention is required\
+- Increase genuine Google Reviews\
+- Build long-term patient loyalty\
+- Provide analytics for clinic performance\
+\
+---\
+\
+# 3. Design Principles\
+\
+- Automation first\
+- Minimal therapist effort\
+- Patient-centric communication\
+- No spam\
+- Google Review policy compliant\
+- Modular architecture\
+- Multi-clinic ready\
+- Mobile-friendly\
+- Secure and privacy-focused\
+\
+---\
+\
+# 4. User Roles\
+\
+## Clinic Owner\
+\
+Permissions\
+\
+- View all feedback\
+- View analytics\
+- Configure automation\
+- Configure review links\
+- Manage templates\
+- View therapist performance\
+\
+---\
+\
+## Therapist\
+\
+Permissions\
+\
+- View patient feedback\
+- Respond to complaints\
+- Track follow-ups\
+- Receive notifications\
+\
+---\
+\
+## Receptionist\
+\
+Permissions\
+\
+- Monitor pending feedback\
+- Contact dissatisfied patients\
+- Mark issues resolved\
+\
+---\
+\
+## Patient\
+\
+Permissions\
+\
+- Submit feedback\
+- Leave Google Review\
+- Report concerns\
+- Update satisfaction\
+\
+---\
+\
+# 5. Module Workflow\
+\
+```\
+Visit Completed\
+        \uc0\u9474 \
+        
+\f1 \uc0\u9660 
+\f0 \
+Wait Configured Time\
+        \uc0\u9474 \
+        
+\f1 \uc0\u9660 
+\f0 \
+Send Follow-up Message\
+        \uc0\u9474 \
+        
+\f1 \uc0\u9660 
+\f0 \
+Patient Opens Link\
+        \uc0\u9474 \
+        
+\f1 \uc0\u9660 
+\f0 \
+Feedback Form\
+        \uc0\u9474 \
+ \uc0\u9484 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 
+\f2 \'a9\'e0
+\f0 \uc0\u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9488 \
+ \uc0\u9474       \u9474         \u9474 \
+ 
+\f1 \uc0\u9660 
+\f0       
+\f1 \uc0\u9660 
+\f0         
+\f1 \uc0\u9660 
+\f0 \
+Happy  Neutral  Unhappy\
+ \uc0\u9474        \u9474         \u9474 \
+ 
+\f1 \uc0\u9660 
+\f0        
+\f1 \uc0\u9660 
+\f0         
+\f1 \uc0\u9660 
+\f0 \
+Google  Save    Notify Therapist\
+Review  Feedback\
+ \uc0\u9474 \
+ 
+\f1 \uc0\u9660 
+\f0 \
+Complete\
+```\
+\
+---\
+\
+# 6. Functional Requirements\
+\
+## FR-001\
+\
+### Visit Completion Trigger\
+\
+When a visit is marked as completed, the system automatically schedules a feedback request.\
+\
+Trigger\
+\
+- Visit Status = Completed\
+\
+Configurable Delay\
+\
+- Immediate\
+- 2 Hours\
+- 6 Hours\
+- 24 Hours\
+\
+---\
+\
+## FR-002\
+\
+### Automated Check-in\
+\
+Example\
+\
+Hi Sarah,\
+\
+Thank you for visiting Beyond Mechanics today.\
+\
+How are you feeling after today's session?\
+\
+Buttons\
+\
+- 
+\f3 \uc0\u55357 \u56842 
+\f0  Much Better\
+- 
+\f3 \uc0\u55357 \u56898 
+\f0  Better\
+- 
+\f3 \uc0\u55357 \u56848 
+\f0  No Change\
+- 
+\f3 \uc0\u55357 \u56853 
+\f0  Worse\
+\
+---\
+\
+## FR-003\
+\
+### Feedback Form\
+\
+Fields\
+\
+Overall Rating\
+\
+
+\f3 \uc0\u11088 \u11088 \u11088 \u11088 \u11088 
+\f0 \
+\
+Questions\
+\
+- How satisfied were you?\
+- Did we explain your condition clearly?\
+- Was the treatment helpful?\
+- Would you recommend us?\
+- Additional comments\
+\
+Optional\
+\
+Upload Image\
+\
+---\
+\
+## FR-004\
+\
+### Internal Feedback\
+\
+All responses are stored inside TheraNet.\
+\
+Fields\
+\
+- Patient\
+- Therapist\
+- Clinic\
+- Visit\
+- Date\
+- Rating\
+- Comments\
+\
+---\
+\
+## FR-005\
+\
+### Google Review Request\
+\
+After feedback submission\
+\
+Display\
+\
+Thank you for your feedback.\
+\
+If you'd like to support our clinic, we'd appreciate a Google Review.\
+\
+Button\
+\
+Leave Google Review\
+\
+Google Review URL should be configurable for every clinic.\
+\
+---\
+\
+## FR-006\
+\
+### Reminder\
+\
+If patient has not submitted feedback\
+\
+After\
+\
+48 Hours\
+\
+Send\
+\
+Friendly Reminder\
+\
+Only once\
+\
+---\
+\
+## FR-007\
+\
+### Complaint Detection\
+\
+Conditions\
+\
+Rating\
+\
+<= 2 Stars\
+\
+OR\
+\
+Patient selected\
+\
+Need Help\
+\
+Action\
+\
+- Notify Therapist\
+- Create Follow-up Task\
+- Highlight Patient\
+\
+---\
+\
+## FR-008\
+\
+### Therapist Follow-up\
+\
+Therapist can\
+\
+- Call Patient\
+- Send Message\
+- Add Notes\
+- Mark Resolved\
+\
+---\
+\
+## FR-009\
+\
+### Complaint Resolution\
+\
+Statuses\
+\
+Pending\
+\
+In Progress\
+\
+Resolved\
+\
+Closed\
+\
+---\
+\
+## FR-010\
+\
+### Analytics Dashboard\
+\
+Display\
+\
+- Feedback Requests\
+- Responses\
+- Average Rating\
+- Google Review Clicks\
+- Reviews Submitted\
+- Complaints\
+- Resolution Time\
+\
+---\
+\
+# 7. Dashboard\
+\
+Cards\
+\
+Today's Feedback\
+\
+Pending Feedback\
+\
+Average Rating\
+\
+Google Reviews\
+\
+Complaints\
+\
+Resolved Issues\
+\
+Recent Activity\
+\
+Monthly Trend\
+\
+---\
+\
+# 8. Patient Timeline\
+\
+Each patient profile should include\
+\
+Visit\
+\
+
+\f1 \uc0\u8595 
+\f0 \
+\
+Feedback\
+\
+
+\f1 \uc0\u8595 
+\f0 \
+\
+Complaint\
+\
+
+\f1 \uc0\u8595 
+\f0 \
+\
+Resolution\
+\
+
+\f1 \uc0\u8595 
+\f0 \
+\
+Review Submitted\
+\
+---\
+\
+# 9. Database Tables\
+\
+## patients\
+\
+- id\
+- name\
+- phone\
+- email\
+\
+---\
+\
+## visits\
+\
+- id\
+- patient_id\
+- therapist_id\
+- completed_at\
+\
+---\
+\
+## feedback_requests\
+\
+- id\
+- visit_id\
+- sent_at\
+- status\
+\
+---\
+\
+## feedback_responses\
+\
+- id\
+- feedback_request_id\
+- rating\
+- comments\
+- recommendation_score\
+\
+---\
+\
+## complaints\
+\
+- id\
+- feedback_response_id\
+- priority\
+- status\
+- assigned_to\
+\
+---\
+\
+## review_requests\
+\
+- id\
+- patient_id\
+- google_review_link\
+- clicked\
+- completed\
+\
+---\
+\
+## automation_logs\
+\
+- id\
+- workflow\
+- timestamp\
+- result\
+\
+---\
+\
+## clinic_settings\
+\
+- google_review_url\
+- automation_delay\
+- reminder_delay\
+\
+---\
+\
+# 10. Automation Flow\
+\
+Automation 1\
+\
+Visit Completed\
+\
+
+\f1 \uc0\u8595 
+\f0 \
+\
+Wait\
+\
+
+\f1 \uc0\u8595 
+\f0 \
+\
+Send Follow-up\
+\
+---\
+\
+Automation 2\
+\
+Patient Opens Link\
+\
+
+\f1 \uc0\u8595 
+\f0 \
+\
+Feedback Form\
+\
+
+\f1 \uc0\u8595 
+\f0 \
+\
+Save Feedback\
+\
+---\
+\
+Automation 3\
+\
+Rating <=2\
+\
+
+\f1 \uc0\u8595 
+\f0 \
+\
+Notify Therapist\
+\
+
+\f1 \uc0\u8595 
+\f0 \
+\
+Create Complaint\
+\
+
+\f1 \uc0\u8595 
+\f0 \
+\
+Follow-up\
+\
+---\
+\
+Automation 4\
+\
+Rating >=4\
+\
+
+\f1 \uc0\u8595 
+\f0 \
+\
+Display Google Review Request\
+\
+---\
+\
+Automation 5\
+\
+No Response\
+\
+
+\f1 \uc0\u8595 
+\f0 \
+\
+Wait 48 Hours\
+\
+
+\f1 \uc0\u8595 
+\f0 \
+\
+Reminder\
+\
+
+\f1 \uc0\u8595 
+\f0 \
+\
+Stop\
+\
+---\
+\
+# 11. Notifications\
+\
+Therapist\
+\
+- Negative Feedback\
+- New Complaint\
+- Follow-up Required\
+\
+Reception\
+\
+- Pending Complaint\
+\
+Owner\
+\
+- Weekly Summary\
+- Monthly Report\
+\
+Patient\
+\
+- Feedback Request\
+- Reminder\
+- Thank You Message\
+\
+---\
+\
+# 12. Settings\
+\
+Clinic can configure\
+\
+Feedback Delay\
+\
+Reminder Delay\
+\
+Google Review URL\
+\
+Message Templates\
+\
+Clinic Name\
+\
+Logo\
+\
+Contact Details\
+\
+---\
+\
+# 13. Reports\
+\
+Daily\
+\
+Weekly\
+\
+Monthly\
+\
+Reports include\
+\
+- Total Requests\
+- Total Responses\
+- Average Rating\
+- Complaint Count\
+- Resolution Time\
+- Google Review Requests\
+- Google Review Clicks\
+\
+---\
+\
+# 14. Future Features\
+\
+- WhatsApp Integration\
+- SMS Integration\
+- Email Integration\
+- AI-generated review replies\
+- AI sentiment analysis\
+- Net Promoter Score (NPS)\
+- Referral tracking\
+- Loyalty rewards\
+- Patient satisfaction trends\
+- Multi-language support\
+- Voice feedback\
+- QR code feedback\
+- Home Exercise feedback\
+- Outcome Measure integration\
+- Google Business API sync\
+- Automated review response generation\
+\
+---\
+\
+# 15. Edge Cases\
+\
+- Patient has no phone number\
+- Duplicate feedback submission\
+- Appointment cancelled\
+- Appointment rescheduled\
+- Multiple visits in one day\
+- Patient changes therapist\
+- Patient belongs to multiple clinics\
+- Internet unavailable\
+- Google Review link invalid\
+- Patient opts out of messages\
+\
+---\
+\
+# 16. MVP Scope\
+\
+Included\
+\
+
+\f3 \uc0\u9989 
+\f0  Visit completion trigger\
+\
+
+\f3 \uc0\u9989 
+\f0  Automated feedback request\
+\
+
+\f3 \uc0\u9989 
+\f0  Feedback form\
+\
+
+\f3 \uc0\u9989 
+\f0  Internal feedback storage\
+\
+
+\f3 \uc0\u9989 
+\f0  Google Review button\
+\
+
+\f3 \uc0\u9989 
+\f0  One reminder\
+\
+
+\f3 \uc0\u9989 
+\f0  Therapist notification\
+\
+
+\f3 \uc0\u9989 
+\f0  Complaint management\
+\
+
+\f3 \uc0\u9989 
+\f0  Dashboard\
+\
+
+\f3 \uc0\u9989 
+\f0  Basic analytics\
+\
+Not Included\
+\
+
+\f3 \uc0\u10060 
+\f0  AI replies\
+\
+
+\f3 \uc0\u10060 
+\f0  WhatsApp API\
+\
+
+\f3 \uc0\u10060 
+\f0  SMS\
+\
+
+\f3 \uc0\u10060 
+\f0  Email automation\
+\
+
+\f3 \uc0\u10060 
+\f0  Google Business API\
+\
+
+\f3 \uc0\u10060 
+\f0  Referral system\
+\
+
+\f3 \uc0\u10060 
+\f0  Loyalty rewards\
+\
+
+\f3 \uc0\u10060 
+\f0  NPS\
+\
+---\
+\
+# 17. Success Metrics\
+\
+- >60% feedback response rate\
+- >20% Google review conversion\
+- Complaint resolution within 48 hours\
+- Average patient satisfaction >4.5/5\
+- Therapist response time <24 hours\
+\
+---\
+\
+# 18. Development Phases\
+\
+Phase 1\
+\
+Database\
+\
+Phase 2\
+\
+Feedback Form\
+\
+Phase 3\
+\
+Automation Engine\
+\
+Phase 4\
+\
+Dashboard\
+\
+Phase 5\
+\
+Complaint Management\
+\
+Phase 6\
+\
+Google Review Integration\
+\
+Phase 7\
+\
+Analytics\
+\
+Phase 8\
+\
+Testing\
+\
+Phase 9\
+\
+Production Release\
+\
+---\
+\
+# End of Document}
