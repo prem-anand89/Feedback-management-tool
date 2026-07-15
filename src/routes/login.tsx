@@ -1,12 +1,9 @@
 import { SignIn } from '@clerk/clerk-react'
-import { useNavigate } from '@tanstack/react-router'
 import { Route as RootRoute } from './__root'
 import { createRoute } from '@tanstack/react-router'
 import { Stethoscope } from 'lucide-react'
 
 function LoginPage() {
-  const navigate = useNavigate()
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
       <div className="w-full max-w-md">

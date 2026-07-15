@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
-import { useUser, useSignOut } from '@clerk/clerk-react'
+import { useUser, useClerk } from '@clerk/clerk-react'
 import {
   LayoutDashboard,
   Inbox,
@@ -29,7 +29,7 @@ export function StaffLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { user, isLoaded } = useUser()
-  const { signOut } = useSignOut()
+  const { signOut } = useClerk()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {

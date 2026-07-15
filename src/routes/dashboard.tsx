@@ -2,19 +2,21 @@ import { createRoute } from '@tanstack/react-router'
 import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { TrendingUp, MessageSquare, AlertCircle, CheckCircle, Star, ThumbsUp } from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { MessageSquare, AlertCircle, CheckCircle, Star, ThumbsUp } from 'lucide-react'
+import { useUser } from '@clerk/clerk-react'
 import { useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { monthlyTrendData } from '@/lib/mock-data'
 
 function DashboardPage() {
-  // TODO: Get clinicId from user's staff record via Clerk metadata
-  const clinicId = 'clinic_placeholder' as any
+  const { user } = useUser()
+  const staffUser = useQuery(api.clinics.getStaffUser, user ? { userId: user.id } : 'skip')
+  const clinicId = staffUser?.clinicId
 
-  const feedbackRequests = useQuery(api.feedback.listFeedbackRequests, { clinicId }) ?? []
-  const feedbackResponses = useQuery(api.feedback.listFeedbackResponses, { clinicId }) ?? []
-  const complaints = useQuery(api.complaints.listComplaints, { clinicId }) ?? []
+  const feedbackRequests = useQuery(api.feedback.listFeedbackRequests, clinicId ? { clinicId } : 'skip') ?? []
+  const feedbackResponses = useQuery(api.feedback.listFeedbackResponses, clinicId ? { clinicId } : 'skip') ?? []
+  const complaints = useQuery(api.complaints.listComplaints, clinicId ? { clinicId } : 'skip') ?? []
 
   const todayFeedback = feedbackRequests.filter((f) => {
     const today = new Date()
@@ -27,7 +29,7 @@ function DashboardPage() {
     ? (feedbackResponses.reduce((sum, f) => sum + f.rating, 0) / feedbackResponses.length).toFixed(1)
     : '0'
   const googleReviews = 12
-  const complaintCount = complaints.filter((c) => c.status === 'pending' || c.status === 'in_progress').length
+  const complaintCount = complaints.filter((c) => c.status === 'pending' || c.status === 'in-progress').length
   const resolved = complaints.filter((c) => c.status === 'resolved').length
 
   const recentActivity = [

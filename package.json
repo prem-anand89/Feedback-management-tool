@@ -21,8 +21,7 @@
     "recharts": "^2.10.0",
     "date-fns": "^2.30.0",
     "@clerk/clerk-react": "^5.0.0",
-    "@convex/react": "^1.10.0",
-    "convex": "^1.10.0"
+    "convex": "^1.16.0"
   },
   "devDependencies": {
     "typescript": "^5.2.2",

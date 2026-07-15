@@ -1,9 +1,11 @@
-import { mutation, query, action, internalAction } from './_generated/server'
+import { mutation, query, internalMutation, internalAction } from './_generated/server'
 import { v } from 'convex/values'
 import { internal } from './_generated/api'
 
 export const generateToken = () => {
-  return crypto.getRandomValues(new Uint8Array(16)).reduce((a, b) => a + b.toString(16), '')
+  return crypto
+    .getRandomValues(new Uint8Array(16))
+    .reduce((a, b) => a + b.toString(16).padStart(2, '0'), '')
 }
 
 export const listFeedbackRequests = query({
@@ -72,7 +74,7 @@ export const scheduleFollowUp = internalAction({
   },
 })
 
-export const createFeedbackRequest = mutation({
+export const createFeedbackRequest = internalMutation({
   args: {
     clinicId: v.id('clinics'),
     visitId: v.id('visits'),

@@ -1,4 +1,4 @@
-import { mutation, query, internalAction } from './_generated/server'
+import { mutation, query, internalMutation, internalAction } from './_generated/server'
 import { v } from 'convex/values'
 import { internal } from './_generated/api'
 
@@ -42,7 +42,7 @@ export const createComplaintFromFeedback = internalAction({
   },
 })
 
-export const createComplaint = mutation({
+export const createComplaint = internalMutation({
   args: {
     clinicId: v.id('clinics'),
     feedbackResponseId: v.id('feedbackResponses'),

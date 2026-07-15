@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { createRoute } from '@tanstack/react-router'
 import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { readSession } from '@/lib/staff-session'
+import { useUser } from '@clerk/clerk-react'
+import { useQuery } from 'convex/react'
+import { api } from '../../convex/_generated/api'
 
 interface ClinicSettings {
   clinicName: string
@@ -17,7 +19,8 @@ interface ClinicSettings {
 }
 
 function SettingsPage() {
-  const [session, setSession] = useState(readSession())
+  const { user } = useUser()
+  const staffUser = useQuery(api.clinics.getStaffUser, user ? { userId: user.id } : 'skip')
   const [settings, setSettings] = useState<ClinicSettings>({
     clinicName: 'Beyond Mechanics Wellness',
     feedbackDelay: '24',
@@ -27,7 +30,7 @@ function SettingsPage() {
     reminderMessage: 'We\'d love to hear about your experience. Have you had a chance to share your feedback?',
   })
 
-  const isOwner = session?.role === 'owner'
+  const isOwner = staffUser?.role === 'owner'
 
   const handleSave = () => {
     localStorage.setItem('clinic_settings', JSON.stringify(settings))
