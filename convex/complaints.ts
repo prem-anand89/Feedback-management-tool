@@ -42,7 +42,37 @@ export const createComplaintFromFeedback = internalAction({
       patientId,
     })
 
-    // TODO: Send notification to clinic owner/therapist
+    const clinic = await ctx.runQuery(async () => {
+      return await ctx.db.get(clinicId)
+    })
+
+    const complaint = await ctx.runQuery(async () => {
+      return await ctx.db.get(complaintId)
+    })
+
+    if (clinic && complaint) {
+      const staffUsers = await ctx.runQuery(async () => {
+        return await ctx.db
+          .query('staffUsers')
+          .withIndex('by_clinic', (q) => q.eq('clinicId', clinicId))
+          .collect()
+      })
+
+      const ownerOrTherapist = staffUsers.find((s) => s.role === 'owner') || staffUsers[0]
+
+      if (ownerOrTherapist) {
+        await ctx.scheduler.runAfter(0, internal.emails.notifyComplaintCreated, {
+          complaintId: complaintId.toString(),
+          clinicId,
+          patientId,
+          priority: complaint.priority,
+          staffEmail: ownerOrTherapist.email,
+          staffName: ownerOrTherapist.name,
+          clinicName: clinic.name,
+        })
+      }
+    }
+
     return complaintId
   },
 })

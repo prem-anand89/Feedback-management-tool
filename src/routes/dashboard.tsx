@@ -3,7 +3,7 @@ import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { MessageSquare, AlertCircle, CheckCircle, Star, Percent } from 'lucide-react'
+import { MessageSquare, AlertCircle, CheckCircle, Star, Percent, TrendingUp } from 'lucide-react'
 import { useQuery, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 
@@ -14,6 +14,7 @@ function DashboardPage() {
   const feedbackRequests = useQuery(api.feedback.listFeedbackRequests, staffUser ? {} : 'skip') ?? []
   const feedbackResponses = useQuery(api.feedback.listFeedbackResponses, staffUser ? {} : 'skip') ?? []
   const complaints = useQuery(api.complaints.listComplaints, staffUser ? {} : 'skip') ?? []
+  const reviewStats = useQuery(api.reviews.getReviewStats, staffUser ? {} : 'skip')
 
   const todayFeedback = feedbackRequests.filter((f) => {
     const today = new Date()
@@ -88,7 +89,7 @@ function DashboardPage() {
           <p className="text-muted-foreground">Welcome back! Here's your clinic's feedback overview.</p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Today's Feedback</CardTitle>
@@ -119,6 +120,17 @@ function DashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">{avgRating}</div>
               <p className="text-xs text-muted-foreground">out of 5 stars ({feedbackResponses.length} total)</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Google Reviews</CardTitle>
+              <TrendingUp className="h-4 w-4 text-green-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{reviewStats?.clickRate ?? 0}%</div>
+              <p className="text-xs text-muted-foreground">{reviewStats?.clicked ?? 0} of {reviewStats?.total ?? 0} clicked</p>
             </CardContent>
           </Card>
 
