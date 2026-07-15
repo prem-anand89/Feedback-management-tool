@@ -4,15 +4,39 @@ import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { TrendingUp, MessageSquare, AlertCircle, CheckCircle, Star, ThumbsUp } from 'lucide-react'
-import { mockFeedback, recentActivity, monthlyTrendData } from '@/lib/mock-data'
+import { useQuery } from 'convex/react'
+import { api } from '../../convex/_generated/api'
+import { monthlyTrendData } from '@/lib/mock-data'
 
 function DashboardPage() {
-  const todayFeedback = 2
-  const pendingFeedback = mockFeedback.filter((f) => f.status === 'submitted').length
-  const avgRating = (mockFeedback.reduce((sum, f) => sum + f.rating, 0) / mockFeedback.length).toFixed(1)
+  // TODO: Get clinicId from user's staff record via Clerk metadata
+  const clinicId = 'clinic_placeholder' as any
+
+  const feedbackRequests = useQuery(api.feedback.listFeedbackRequests, { clinicId }) ?? []
+  const feedbackResponses = useQuery(api.feedback.listFeedbackResponses, { clinicId }) ?? []
+  const complaints = useQuery(api.complaints.listComplaints, { clinicId }) ?? []
+
+  const todayFeedback = feedbackRequests.filter((f) => {
+    const today = new Date()
+    const sentDate = new Date(f.sentAt)
+    return sentDate.toDateString() === today.toDateString()
+  }).length
+
+  const pendingFeedback = feedbackRequests.filter((f) => f.status === 'pending').length
+  const avgRating = feedbackResponses.length > 0
+    ? (feedbackResponses.reduce((sum, f) => sum + f.rating, 0) / feedbackResponses.length).toFixed(1)
+    : '0'
   const googleReviews = 12
-  const complaints = 1
-  const resolved = 5
+  const complaintCount = complaints.filter((c) => c.status === 'pending' || c.status === 'in_progress').length
+  const resolved = complaints.filter((c) => c.status === 'resolved').length
+
+  const recentActivity = [
+    ...feedbackResponses.slice(-3).map((f) => ({
+      id: f._id,
+      message: `New feedback received: ${f.rating}★ rating`,
+      timestamp: new Date(f.submittedAt).toLocaleString(),
+    })),
+  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 5)
 
   return (
     <StaffLayout>
@@ -73,7 +97,7 @@ function DashboardPage() {
               <AlertCircle className="h-4 w-4 text-red-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{complaints}</div>
+              <div className="text-2xl font-bold">{complaintCount}</div>
               <p className="text-xs text-muted-foreground">open issues</p>
             </CardContent>
           </Card>

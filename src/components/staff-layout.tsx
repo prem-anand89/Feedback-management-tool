@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
+import { useUser, useSignOut } from '@clerk/clerk-react'
 import {
   LayoutDashboard,
   Inbox,
@@ -14,7 +15,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
-import { clearSession, readSession, roleLabels, type StaffSession } from '@/lib/staff-session'
 
 const nav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -28,28 +28,29 @@ const nav = [
 export function StaffLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const [session, setSession] = useState<StaffSession | null>(null)
+  const { user, isLoaded } = useUser()
+  const { signOut } = useSignOut()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
-    const s = readSession()
-    if (!s) {
+    if (isLoaded && !user) {
       navigate({ to: '/login' })
-      return
     }
-    setSession(s)
-  }, [navigate])
+  }, [isLoaded, user, navigate])
 
   useEffect(() => {
     setMobileOpen(false)
   }, [pathname])
 
-  const handleLogout = () => {
-    clearSession()
+  const handleLogout = async () => {
+    await signOut()
     navigate({ to: '/login' })
   }
 
-  if (!session) return null
+  if (!isLoaded || !user) return null
+
+  const userEmail = user.emailAddresses[0]?.emailAddress || ''
+  const userName = user.fullName || user.primaryEmailAddress?.emailAddress?.split('@')[0] || 'User'
 
   const NavList = () => (
     <nav className="flex flex-col gap-1 px-3">
@@ -92,7 +93,7 @@ export function StaffLayout({ children }: { children: ReactNode }) {
         <div className="flex-1 overflow-y-auto py-2">
           <NavList />
         </div>
-        <div className="border-t p-3 text-xs text-muted-foreground">v0.1 · Mock data</div>
+        <div className="border-t p-3 text-xs text-muted-foreground">v0.2 · Clerk + Convex</div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -114,11 +115,11 @@ export function StaffLayout({ children }: { children: ReactNode }) {
 
           <div className="ml-auto flex items-center gap-3">
             <div className="text-right leading-tight">
-              <div className="text-sm font-medium">{session.name}</div>
-              <div className="text-xs text-muted-foreground">{roleLabels[session.role]}</div>
+              <div className="text-sm font-medium">{userName}</div>
+              <div className="text-xs text-muted-foreground">{userEmail}</div>
             </div>
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-              {session.name
+              {userName
                 .split(' ')
                 .map((n) => n[0])
                 .slice(0, 2)
