@@ -1,4 +1,4 @@
-import { RootRoute } from './routes/__root'
+import { Route as RootRoute } from './routes/__root'
 import { Route as LoginRoute } from './routes/login'
 import { Route as SignUpRoute } from './routes/signup'
 import { Route as SetupRoute } from './routes/setup'
