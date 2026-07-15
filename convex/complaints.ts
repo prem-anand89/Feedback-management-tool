@@ -42,35 +42,20 @@ export const createComplaintFromFeedback = internalAction({
       patientId,
     })
 
-    const clinic = await ctx.runQuery(async () => {
-      return await ctx.db.get(clinicId)
-    })
+    const clinic = await ctx.runQuery(internal.clinics.getClinic, { clinicId })
+    const staffUsers = await ctx.runQuery(internal.clinics.listStaffInternal, { clinicId })
+    const ownerOrTherapist = staffUsers.find((s) => s.role === 'owner') || staffUsers[0]
 
-    const complaint = await ctx.runQuery(async () => {
-      return await ctx.db.get(complaintId)
-    })
-
-    if (clinic && complaint) {
-      const staffUsers = await ctx.runQuery(async () => {
-        return await ctx.db
-          .query('staffUsers')
-          .withIndex('by_clinic', (q) => q.eq('clinicId', clinicId))
-          .collect()
+    if (clinic && ownerOrTherapist) {
+      await ctx.scheduler.runAfter(0, internal.emails.notifyComplaintCreated, {
+        complaintId: complaintId.toString(),
+        clinicId,
+        patientId,
+        priority: 'medium',
+        staffEmail: ownerOrTherapist.email,
+        staffName: ownerOrTherapist.name,
+        clinicName: clinic.name,
       })
-
-      const ownerOrTherapist = staffUsers.find((s) => s.role === 'owner') || staffUsers[0]
-
-      if (ownerOrTherapist) {
-        await ctx.scheduler.runAfter(0, internal.emails.notifyComplaintCreated, {
-          complaintId: complaintId.toString(),
-          clinicId,
-          patientId,
-          priority: complaint.priority,
-          staffEmail: ownerOrTherapist.email,
-          staffName: ownerOrTherapist.name,
-          clinicName: clinic.name,
-        })
-      }
     }
 
     return complaintId

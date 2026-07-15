@@ -110,6 +110,14 @@ export default defineSchema({
     .index('by_clinic', ['clinicId'])
     .index('by_patient', ['patientId']),
 
+  widgetFeedback: defineTable({
+    clinicId: v.id('clinics'),
+    rating: v.number(), // 1-5
+    comment: v.string(),
+    createdAt: v.number(),
+  })
+    .index('by_clinic', ['clinicId']),
+
   automationLogs: defineTable({
     clinicId: v.id('clinics'),
     workflow: v.string(), // e.g., 'send_feedback_request', 'send_reminder'

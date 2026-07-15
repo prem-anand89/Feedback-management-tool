@@ -1,4 +1,4 @@
-import { mutation, query, internalMutation } from './_generated/server'
+import { query, internalMutation } from './_generated/server'
 import { v } from 'convex/values'
 import { requireStaffUser } from './lib/auth'
 
@@ -30,7 +30,7 @@ export const createReviewRequest = internalMutation({
   },
 })
 
-export const trackReviewClick = mutation({
+export const trackReviewClick = internalMutation({
   args: {
     reviewRequestId: v.id('reviewRequests'),
   },
@@ -70,14 +70,22 @@ export const createWidgetFeedback = internalMutation({
     comment: v.string(),
   },
   handler: async (ctx, { clinicId, rating, comment }) => {
-    const feedbackId = await ctx.db.insert('reviewRequests', {
+    return await ctx.db.insert('widgetFeedback', {
       clinicId,
-      patientId: '' as any,
-      googleReviewUrl: '',
-      clickedAt: Date.now(),
-      completedAt: Date.now(),
+      rating,
+      comment,
       createdAt: Date.now(),
     })
-    return feedbackId
+  },
+})
+
+export const listWidgetFeedback = query({
+  args: {},
+  handler: async (ctx) => {
+    const staffUser = await requireStaffUser(ctx)
+    return await ctx.db
+      .query('widgetFeedback')
+      .withIndex('by_clinic', (q) => q.eq('clinicId', staffUser.clinicId))
+      .collect()
   },
 })

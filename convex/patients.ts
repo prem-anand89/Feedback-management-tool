@@ -1,4 +1,4 @@
-import { mutation, query } from './_generated/server'
+import { mutation, query, internalQuery } from './_generated/server'
 import { v } from 'convex/values'
 import { requireStaffUser } from './lib/auth'
 
@@ -20,6 +20,15 @@ export const getPatient = query({
     const patient = await ctx.db.get(patientId)
     if (!patient || patient.clinicId !== staffUser.clinicId) return null
     return patient
+  },
+})
+
+// Internal-only: used by server-side workflows (WhatsApp notifications) that
+// need patient contact info without a caller identity.
+export const getPatientInternal = internalQuery({
+  args: { patientId: v.id('patients') },
+  handler: async (ctx, { patientId }) => {
+    return await ctx.db.get(patientId)
   },
 })
 

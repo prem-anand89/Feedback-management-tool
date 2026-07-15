@@ -1,4 +1,4 @@
-import { action } from './_generated/server'
+import { internalAction } from './_generated/server'
 import { v } from 'convex/values'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
@@ -42,7 +42,7 @@ async function sendEmail(
   }
 }
 
-export const notifyComplaintCreated = action({
+export const notifyComplaintCreated = internalAction({
   args: {
     complaintId: v.string(),
     clinicId: v.id('clinics'),
@@ -72,7 +72,7 @@ export const notifyComplaintCreated = action({
   },
 })
 
-export const notifyFeedbackResponse = action({
+export const notifyFeedbackResponse = internalAction({
   args: {
     staffEmail: v.string(),
     staffName: v.string(),
@@ -99,7 +99,7 @@ export const notifyFeedbackResponse = action({
   },
 })
 
-export const sendWelcomeEmail = action({
+export const sendWelcomeEmail = internalAction({
   args: {
     staffEmail: v.string(),
     staffName: v.string(),

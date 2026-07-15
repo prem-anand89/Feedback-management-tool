@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createRoute } from '@tanstack/react-router'
 import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useQuery, useConvexAuth } from 'convex/react'
+import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 
 interface ClinicSettings {
@@ -20,20 +20,59 @@ interface ClinicSettings {
 function SettingsPage() {
   const { isAuthenticated } = useConvexAuth()
   const staffUser = useQuery(api.clinics.getMyStaffUser, isAuthenticated ? {} : 'skip')
-  const [settings, setSettings] = useState<ClinicSettings>({
-    clinicName: 'Beyond Mechanics Wellness',
-    feedbackDelay: '24',
-    reminderDelay: '48',
-    googleReviewUrl: 'https://google.com/maps/...',
-    checkInMessage: 'Thank you for visiting {clinic_name}. How are you feeling after today\'s session?',
-    reminderMessage: 'We\'d love to hear about your experience. Have you had a chance to share your feedback?',
-  })
+  const clinic = useQuery(api.clinics.getMyClinic, staffUser ? {} : 'skip')
+  const updateClinicSettings = useMutation(api.clinics.updateClinicSettings)
+
+  const [settings, setSettings] = useState<ClinicSettings | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState('')
 
   const isOwner = staffUser?.role === 'owner'
 
-  const handleSave = () => {
-    localStorage.setItem('clinic_settings', JSON.stringify(settings))
-    alert('Settings saved!')
+  useEffect(() => {
+    if (clinic && !settings) {
+      setSettings({
+        clinicName: clinic.name,
+        feedbackDelay: String(clinic.feedbackDelay),
+        reminderDelay: String(clinic.reminderDelay),
+        googleReviewUrl: clinic.googleReviewUrl ?? '',
+        checkInMessage: clinic.checkInMessage,
+        reminderMessage: clinic.reminderMessage,
+      })
+    }
+  }, [clinic, settings])
+
+  const handleSave = async () => {
+    if (!settings) return
+    setIsSaving(true)
+    setError('')
+    try {
+      await updateClinicSettings({
+        name: settings.clinicName,
+        feedbackDelay: Number(settings.feedbackDelay),
+        reminderDelay: Number(settings.reminderDelay),
+        googleReviewUrl: settings.googleReviewUrl,
+        checkInMessage: settings.checkInMessage,
+        reminderMessage: settings.reminderMessage,
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save settings')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (!settings) {
+    return (
+      <StaffLayout>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+            <p className="text-muted-foreground">Loading clinic settings...</p>
+          </div>
+        </div>
+      </StaffLayout>
+    )
   }
 
   return (
@@ -154,11 +193,16 @@ function SettingsPage() {
             </CardContent>
           </Card>
 
+          {error && (
+            <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
+              {error}
+            </div>
+          )}
+
           <div className="flex gap-2">
-            <Button onClick={handleSave} disabled={!isOwner}>
-              Save Settings
+            <Button onClick={handleSave} disabled={!isOwner || isSaving}>
+              {isSaving ? 'Saving...' : 'Save Settings'}
             </Button>
-            <Button variant="outline">Cancel</Button>
           </div>
         </div>
       </div>

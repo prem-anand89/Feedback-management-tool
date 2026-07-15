@@ -1,4 +1,4 @@
-import { mutation, query, internalMutation, internalAction } from './_generated/server'
+import { mutation, query, internalQuery, internalMutation, internalAction } from './_generated/server'
 import { v } from 'convex/values'
 import { internal } from './_generated/api'
 import { requireStaffUser } from './lib/auth'
@@ -48,6 +48,15 @@ export const getFeedbackRequestByToken = query({
       .query('feedbackRequests')
       .withIndex('by_token', (q) => q.eq('token', token))
       .first()
+  },
+})
+
+// Internal-only: used by server-side workflows (WhatsApp reminders) that
+// need the feedback request without a caller identity.
+export const getFeedbackRequestInternal = internalQuery({
+  args: { feedbackRequestId: v.id('feedbackRequests') },
+  handler: async (ctx, { feedbackRequestId }) => {
+    return await ctx.db.get(feedbackRequestId)
   },
 })
 

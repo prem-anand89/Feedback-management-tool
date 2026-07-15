@@ -1,5 +1,6 @@
 import { mutation, query, internalQuery } from './_generated/server'
 import { v } from 'convex/values'
+import { internal } from './_generated/api'
 import { requireStaffUser, requireOwner } from './lib/auth'
 
 // Internal-only: used by scheduleFollowUp and other server-side workflows
@@ -38,7 +39,7 @@ export const listMyClinics = query({
 export const createClinic = mutation({
   args: {
     name: v.string(),
-    contactEmail: v.string(),
+    contactEmail: v.optional(v.string()),
     contactPhone: v.optional(v.string()),
     googleReviewUrl: v.optional(v.string()),
   },
@@ -46,10 +47,13 @@ export const createClinic = mutation({
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) throw new Error('Not authenticated')
 
+    const resolvedEmail = contactEmail ?? identity.email
+    if (!resolvedEmail) throw new Error('No contact email available for this account')
+
     const clinicId = await ctx.db.insert('clinics', {
       ownerUserId: identity.subject,
       name,
-      contactEmail,
+      contactEmail: resolvedEmail,
       contactPhone,
       googleReviewUrl,
       feedbackDelay: 24,
@@ -62,10 +66,16 @@ export const createClinic = mutation({
     await ctx.db.insert('staffUsers', {
       clinicId,
       userId: identity.subject,
-      name: identity.name ?? identity.email ?? 'Owner',
-      email: identity.email ?? contactEmail,
+      name: identity.name ?? resolvedEmail,
+      email: resolvedEmail,
       role: 'owner',
       createdAt: Date.now(),
+    })
+
+    await ctx.scheduler.runAfter(0, internal.emails.sendWelcomeEmail, {
+      staffEmail: resolvedEmail,
+      staffName: identity.name ?? resolvedEmail,
+      clinicName: name,
     })
 
     return clinicId
@@ -132,6 +142,18 @@ export const listStaff = query({
     return await ctx.db
       .query('staffUsers')
       .withIndex('by_clinic', (q) => q.eq('clinicId', staffUser.clinicId))
+      .collect()
+  },
+})
+
+// Internal-only: used by server-side workflows (email/WhatsApp notifications)
+// that need the clinic's staff list without a caller identity.
+export const listStaffInternal = internalQuery({
+  args: { clinicId: v.id('clinics') },
+  handler: async (ctx, { clinicId }) => {
+    return await ctx.db
+      .query('staffUsers')
+      .withIndex('by_clinic', (q) => q.eq('clinicId', clinicId))
       .collect()
   },
 })

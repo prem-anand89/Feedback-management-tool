@@ -25,7 +25,7 @@ function SetupPage() {
     setIsLoading(true)
     setError('')
     try {
-      await createClinic({ clinicName: clinicName.trim() })
+      await createClinic({ name: clinicName.trim() })
       navigate({ to: '/dashboard' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create clinic')
