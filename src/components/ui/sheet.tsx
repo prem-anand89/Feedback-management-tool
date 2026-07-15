@@ -1,46 +1,96 @@
 import * as React from 'react'
-import * as SheetPrimitive from '@radix-ui/react-sheet'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const Sheet = SheetPrimitive.Root
-const SheetTrigger = SheetPrimitive.Trigger
-const SheetClose = SheetPrimitive.Close
+interface SheetContextType {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
 
-const SheetContent = React.forwardRef<
-  React.ElementRef<typeof SheetPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content> & {
-    side?: 'top' | 'right' | 'bottom' | 'left'
-  }
->(({ side = 'right', className, children, ...props }, ref) => {
-  const sideClasses = {
-    top: 'inset-x-0 top-0 border-b',
-    bottom: 'inset-x-0 bottom-0 border-t',
-    left: 'inset-y-0 left-0 border-r w-3/4',
-    right: 'inset-y-0 right-0 border-l w-3/4',
+const SheetContext = React.createContext<SheetContextType | undefined>(undefined)
+
+function Sheet({ children, open = false, onOpenChange }: { children: React.ReactNode; open?: boolean; onOpenChange?: (open: boolean) => void }) {
+  const [isOpen, setIsOpen] = React.useState(open)
+
+  const handleOpenChange = (newOpen: boolean) => {
+    setIsOpen(newOpen)
+    onOpenChange?.(newOpen)
   }
 
   return (
-    <SheetPrimitive.Portal>
-      <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" />
-      <SheetPrimitive.Content
-        ref={ref}
-        className={cn(
-          'fixed z-50 gap-4 bg-background p-4 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500',
-          sideClasses[side],
-          className,
-        )}
-        {...props}
-      >
-        {children}
-        <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </SheetPrimitive.Close>
-      </SheetPrimitive.Content>
-    </SheetPrimitive.Portal>
+    <SheetContext.Provider value={{ open: isOpen, onOpenChange: handleOpenChange }}>
+      {children}
+    </SheetContext.Provider>
   )
-})
-SheetContent.displayName = SheetPrimitive.Content.displayName
+}
+
+function useSheet() {
+  const context = React.useContext(SheetContext)
+  if (!context) throw new Error('Sheet components must be used within Sheet')
+  return context
+}
+
+const SheetTrigger = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement> & { asChild?: boolean }>(
+  ({ asChild, ...props }, ref) => {
+    const { onOpenChange } = useSheet()
+    const Component = asChild ? React.Fragment : 'button'
+
+    if (asChild && React.isValidElement(props.children)) {
+      return React.cloneElement(props.children as React.ReactElement, {
+        onClick: () => onOpenChange(true),
+      })
+    }
+
+    return <Component ref={ref} onClick={() => onOpenChange(true)} {...props} />
+  }
+)
+SheetTrigger.displayName = 'SheetTrigger'
+
+const SheetClose = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement>>(
+  (props, ref) => {
+    const { onOpenChange } = useSheet()
+    return <button ref={ref} onClick={() => onOpenChange(false)} {...props} />
+  }
+)
+SheetClose.displayName = 'SheetClose'
+
+interface SheetContentProps extends React.HTMLAttributes<HTMLDivElement> {
+  side?: 'top' | 'right' | 'bottom' | 'left'
+}
+
+const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
+  ({ side = 'left', className, children, ...props }, ref) => {
+    const { open, onOpenChange } = useSheet()
+
+    if (!open) return null
+
+    const sideClasses = {
+      top: 'inset-x-0 top-0 border-b',
+      bottom: 'inset-x-0 bottom-0 border-t',
+      left: 'inset-y-0 left-0 border-r w-64',
+      right: 'inset-y-0 right-0 border-l w-64',
+    }
+
+    return (
+      <>
+        <div className="fixed inset-0 z-40 bg-background/80" onClick={() => onOpenChange(false)} />
+        <div
+          ref={ref}
+          className={cn('fixed z-50 bg-background shadow-lg', sideClasses[side], className)}
+          {...props}
+        >
+          <button
+            onClick={() => onOpenChange(false)}
+            className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          {children}
+        </div>
+      </>
+    )
+  }
+)
+SheetContent.displayName = 'SheetContent'
 
 export { Sheet, SheetTrigger, SheetClose, SheetContent }
