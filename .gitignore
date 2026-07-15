@@ -12,3 +12,8 @@ build/
 *.swo
 *~
 .turbo/
+
+# Build artifacts from TypeScript
+src/**/*.js
+src/**/*.js.map
+
