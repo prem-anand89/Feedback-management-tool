@@ -1,4 +1,4 @@
-import { useNavigate, createRoute } from '@tanstack/react-router'
+import { useNavigate, useParams, createRoute } from '@tanstack/react-router'
 import { Route as FRoute } from '../'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -6,6 +6,7 @@ import { useState } from 'react'
 
 function PatientCheckInPage() {
   const navigate = useNavigate()
+  const { token } = useParams({ from: '/f/$token/' })
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null)
 
   const options = [
@@ -17,7 +18,7 @@ function PatientCheckInPage() {
 
   const handleNext = () => {
     if (selectedEmoji) {
-      navigate({ to: '/f/$token/form', params: { token: 'mock-token' }, search: { feeling: selectedEmoji } })
+      navigate({ to: '/f/$token/form', params: { token }, search: { feeling: selectedEmoji } })
     }
   }
 

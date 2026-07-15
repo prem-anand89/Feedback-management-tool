@@ -1,14 +1,20 @@
-import { useNavigate, createRoute, useSearch } from '@tanstack/react-router'
+import { useNavigate, createRoute, useSearch, useParams } from '@tanstack/react-router'
 import { Route as FRoute } from '../'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
-import { Star } from 'lucide-react'
+import { Star, AlertCircle } from 'lucide-react'
+import { useQuery, useMutation } from 'convex/react'
+import { api } from '../../../../convex/_generated/api'
 
 function PatientFeedbackFormPage() {
   const navigate = useNavigate()
+  const { token } = useParams({ from: '/f/$token/form' })
   const search = useSearch({ from: '/f/$token/form' })
   const feeling = (search?.feeling as string) || 'no-value'
+
+  const feedbackRequest = useQuery(api.feedback.getFeedbackRequestByToken, { token })
+  const submitFeedback = useMutation(api.feedback.submitFeedback)
 
   const [ratings, setRatings] = useState({
     overall: 0,
@@ -18,12 +24,52 @@ function PatientFeedbackFormPage() {
     recommendation: 0,
   })
   const [comments, setComments] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const rating = ratings.overall || 3
-    const thankYouPath = rating >= 4 ? 'thank-you' : 'sorry'
-    navigate({ to: `/f/$token/${thankYouPath}`, params: { token: 'mock-token' } })
+    if (!feedbackRequest) {
+      setError('Feedback request not found')
+      return
+    }
+
+    if (!ratings.overall) {
+      setError('Please provide an overall rating')
+      return
+    }
+
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      await submitFeedback({
+        feedbackRequestId: feedbackRequest._id,
+        rating: ratings.overall,
+        satisfaction: ratings.satisfaction,
+        explanationClarity: ratings.clarity,
+        treatmentHelpfulness: ratings.helpfulness,
+        recommendation: ratings.recommendation,
+        comments,
+      })
+
+      const thankYouPath = ratings.overall >= 4 ? 'thank-you' : 'sorry'
+      navigate({ to: `/f/$token/${thankYouPath}`, params: { token } })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to submit feedback')
+      setSubmitting(false)
+    }
+  }
+
+  if (!feedbackRequest) {
+    return (
+      <Card>
+        <CardContent className="pt-6 text-center">
+          <AlertCircle className="mx-auto mb-2 h-8 w-8 text-yellow-600" />
+          <p className="text-sm text-muted-foreground">Loading feedback form...</p>
+        </CardContent>
+      </Card>
+    )
   }
 
   const renderStarRating = (value: number, onChange: (v: number) => void) => (
@@ -48,6 +94,11 @@ function PatientFeedbackFormPage() {
         <CardDescription>Help us improve your experience</CardDescription>
       </CardHeader>
       <CardContent>
+        {error && (
+          <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800">
+            {error}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-3">
             <label className="text-sm font-medium">Overall Rating</label>
@@ -85,8 +136,8 @@ function PatientFeedbackFormPage() {
             />
           </div>
 
-          <Button type="submit" className="w-full" size="lg">
-            Submit Feedback
+          <Button type="submit" className="w-full" size="lg" disabled={submitting}>
+            {submitting ? 'Submitting...' : 'Submit Feedback'}
           </Button>
         </form>
       </CardContent>
