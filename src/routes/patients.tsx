@@ -4,13 +4,17 @@ import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Mail, Phone, Plus } from 'lucide-react'
+import { Mail, Phone, Plus, Stethoscope, CheckCircle2, Clock } from 'lucide-react'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+
+const inputClass =
+  'w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50'
 
 function PatientsPage() {
   const { isAuthenticated } = useConvexAuth()
   const staffUser = useQuery(api.clinics.getMyStaffUser, isAuthenticated ? {} : 'skip')
+  const clinic = useQuery(api.clinics.getMyClinic, isAuthenticated ? {} : 'skip')
   const patients = useQuery(api.patients.listPatients, isAuthenticated ? {} : 'skip') ?? []
   const visits = useQuery(api.visits.listVisits, isAuthenticated ? {} : 'skip') ?? []
 
@@ -18,12 +22,15 @@ function PatientsPage() {
   const createVisit = useMutation(api.visits.createVisit)
   const completeVisit = useMutation(api.visits.completeVisit)
 
+  const services = clinic?.services ?? []
+
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)
   const [showAddPatient, setShowAddPatient] = useState(false)
   const [showAddVisit, setShowAddVisit] = useState(false)
   const [newPatientName, setNewPatientName] = useState('')
   const [newPatientEmail, setNewPatientEmail] = useState('')
   const [newPatientPhone, setNewPatientPhone] = useState('')
+  const [visitService, setVisitService] = useState('')
   const [isLoadingPatient, setIsLoadingPatient] = useState(false)
   const [isLoadingVisit, setIsLoadingVisit] = useState(false)
   const [error, setError] = useState('')
@@ -33,8 +40,9 @@ function PatientsPage() {
 
   const handleAddPatient = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newPatientName.trim() || !newPatientEmail.trim() || !newPatientPhone.trim()) {
-      setError('All fields are required')
+    // Email is optional now — phone is the primary contact.
+    if (!newPatientName.trim() || !newPatientPhone.trim()) {
+      setError('Name and phone are required')
       return
     }
 
@@ -43,7 +51,7 @@ function PatientsPage() {
     try {
       const patientId = await createPatient({
         name: newPatientName.trim(),
-        email: newPatientEmail.trim(),
+        email: newPatientEmail.trim() || undefined,
         phone: newPatientPhone.trim(),
       })
       setSelectedPatientId(patientId)
@@ -71,7 +79,9 @@ function PatientsPage() {
       await createVisit({
         patientId: selected._id,
         therapistId: staffUser._id,
+        serviceContext: visitService || undefined,
       })
+      setVisitService('')
       setShowAddVisit(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create visit')
@@ -94,10 +104,10 @@ function PatientsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Patients</h1>
-            <p className="text-muted-foreground">Manage patients and schedule visits</p>
+            <p className="text-muted-foreground">Manage patients and log their visits</p>
           </div>
           <Button onClick={() => setShowAddPatient(true)}>
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="mr-2 h-4 w-4" />
             Add Patient
           </Button>
         </div>
@@ -105,7 +115,7 @@ function PatientsPage() {
         <div className="grid gap-6 md:grid-cols-3">
           <Card className="md:col-span-1">
             <CardHeader>
-              <CardTitle>Patients</CardTitle>
+              <CardTitle className="text-xl">Patients</CardTitle>
               <CardDescription>{patients.length} total</CardDescription>
             </CardHeader>
             <CardContent>
@@ -117,12 +127,17 @@ function PatientsPage() {
                     <button
                       key={patient._id}
                       onClick={() => setSelectedPatientId(patient._id)}
-                      className={`w-full rounded-lg border p-3 text-left transition-colors ${
-                        selectedPatientId === patient._id ? 'border-primary bg-primary/5' : 'border-input hover:bg-accent'
+                      className={`w-full rounded-xl border p-3 text-left transition-colors ${
+                        selectedPatientId === patient._id
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:bg-accent'
                       }`}
                     >
-                      <p className="font-medium">{patient.name}</p>
-                      <p className="text-xs text-muted-foreground">{patient.phone}</p>
+                      <p className="font-semibold">{patient.name}</p>
+                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Phone className="h-3 w-3" />
+                        {patient.phone}
+                      </p>
                     </button>
                   ))
                 )}
@@ -130,60 +145,69 @@ function PatientsPage() {
             </CardContent>
           </Card>
 
-          {selected && (
+          {selected ? (
             <Card className="md:col-span-2">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>{selected.name}</CardTitle>
+                    <CardTitle className="text-xl">{selected.name}</CardTitle>
                     <CardDescription>Patient profile and visits</CardDescription>
                   </div>
                   <Button onClick={() => setShowAddVisit(true)} size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Visit
+                    <Plus className="mr-2 h-4 w-4" />
+                    Log Visit
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Email</p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <p className="text-sm">{selected.email}</p>
-                    </div>
-                  </div>
-                  <div>
                     <p className="text-sm font-medium text-muted-foreground">Phone</p>
                     <div className="mt-1 flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <p className="text-sm">{selected.phone}</p>
+                      <Phone className="h-4 w-4 text-primary" />
+                      <p className="text-sm font-medium">{selected.phone}</p>
                     </div>
                   </div>
+                  {selected.email && (
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Email</p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <p className="text-sm">{selected.email}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>
                   <h3 className="mb-4 font-semibold">Visits</h3>
                   {patientVisits.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No visits scheduled. Create one to get started.</p>
+                    <p className="text-sm text-muted-foreground">No visits logged yet. Log one to start collecting feedback.</p>
                   ) : (
                     <div className="space-y-3">
                       {patientVisits.map((visit) => (
-                        <div key={visit._id} className="flex items-center justify-between rounded-lg border p-3">
-                          <div>
-                            <p className="font-medium text-sm">
-                              {new Date(visit.createdAt).toLocaleDateString()}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {visit.completedAt ? 'Completed' : 'Pending'}
-                            </p>
+                        <div key={visit._id} className="flex items-center justify-between rounded-xl border border-border p-3.5">
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold">{new Date(visit.createdAt).toLocaleDateString()}</p>
+                            {visit.serviceContext && (
+                              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <Stethoscope className="h-3 w-3" />
+                                {visit.serviceContext}
+                              </p>
+                            )}
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+                                visit.completedAt
+                                  ? 'bg-primary/10 text-primary'
+                                  : 'bg-secondary/15 text-secondary-foreground'
+                              }`}
+                            >
+                              {visit.completedAt ? <CheckCircle2 className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                              {visit.completedAt ? 'Completed' : 'In progress'}
+                            </span>
                           </div>
                           {!visit.completedAt && (
-                            <Button
-                              onClick={() => handleCompleteVisit(visit._id)}
-                              size="sm"
-                              variant="outline"
-                            >
+                            <Button onClick={() => handleCompleteVisit(visit._id)} size="sm" variant="outline">
                               Mark Complete
                             </Button>
                           )}
@@ -194,13 +218,23 @@ function PatientsPage() {
                 </div>
               </CardContent>
             </Card>
+          ) : (
+            <Card className="md:col-span-2">
+              <CardContent className="flex h-full min-h-48 flex-col items-center justify-center gap-2 py-10 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
+                  <Stethoscope className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">Select a patient to view their profile and visits.</p>
+              </CardContent>
+            </Card>
           )}
         </div>
 
         {showAddPatient && (
           <Card>
             <CardHeader>
-              <CardTitle>Add New Patient</CardTitle>
+              <CardTitle className="text-xl">Add New Patient</CardTitle>
+              <CardDescription>Phone is required. Email is optional — most clinics only need a phone number.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleAddPatient} className="space-y-4">
@@ -213,18 +247,7 @@ function PatientsPage() {
                       value={newPatientName}
                       onChange={(e) => setNewPatientName(e.target.value)}
                       disabled={isLoadingPatient}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Email</label>
-                    <input
-                      type="email"
-                      placeholder="email@example.com"
-                      value={newPatientEmail}
-                      onChange={(e) => setNewPatientEmail(e.target.value)}
-                      disabled={isLoadingPatient}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50"
+                      className={inputClass}
                     />
                   </div>
                   <div className="space-y-2">
@@ -235,25 +258,29 @@ function PatientsPage() {
                       value={newPatientPhone}
                       onChange={(e) => setNewPatientPhone(e.target.value)}
                       disabled={isLoadingPatient}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Email <span className="font-normal text-muted-foreground">(optional)</span>
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="email@example.com"
+                      value={newPatientEmail}
+                      onChange={(e) => setNewPatientEmail(e.target.value)}
+                      disabled={isLoadingPatient}
+                      className={inputClass}
                     />
                   </div>
                 </div>
-                {error && (
-                  <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
-                    {error}
-                  </div>
-                )}
+                {error && <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
                 <div className="flex gap-2">
                   <Button type="submit" disabled={isLoadingPatient}>
                     {isLoadingPatient ? 'Adding...' : 'Add Patient'}
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowAddPatient(false)}
-                    disabled={isLoadingPatient}
-                  >
+                  <Button type="button" variant="outline" onClick={() => setShowAddPatient(false)} disabled={isLoadingPatient}>
                     Cancel
                   </Button>
                 </div>
@@ -265,25 +292,38 @@ function PatientsPage() {
         {showAddVisit && selected && (
           <Card>
             <CardHeader>
-              <CardTitle>Schedule Visit for {selected.name}</CardTitle>
+              <CardTitle className="text-xl">Log Visit for {selected.name}</CardTitle>
+              <CardDescription>Record which service the patient received so feedback is tied to the right treatment.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleAddVisit} className="space-y-4">
-                {error && (
-                  <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
-                    {error}
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Service / Treatment</label>
+                  <select
+                    value={visitService}
+                    onChange={(e) => setVisitService(e.target.value)}
+                    disabled={isLoadingVisit}
+                    className={inputClass}
+                  >
+                    <option value="">Select a service…</option>
+                    {services.map((service) => (
+                      <option key={service} value={service}>
+                        {service}
+                      </option>
+                    ))}
+                  </select>
+                  {services.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      No services configured yet. Add them in Settings → Services.
+                    </p>
+                  )}
+                </div>
+                {error && <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
                 <div className="flex gap-2">
                   <Button type="submit" disabled={isLoadingVisit}>
-                    {isLoadingVisit ? 'Scheduling...' : 'Schedule Visit'}
+                    {isLoadingVisit ? 'Logging...' : 'Log Visit'}
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowAddVisit(false)}
-                    disabled={isLoadingVisit}
-                  >
+                  <Button type="button" variant="outline" onClick={() => setShowAddVisit(false)} disabled={isLoadingVisit}>
                     Cancel
                   </Button>
                 </div>

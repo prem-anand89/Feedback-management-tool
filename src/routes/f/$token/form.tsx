@@ -1,4 +1,4 @@
-import { useNavigate, createRoute, useSearch, useParams } from '@tanstack/react-router'
+import { useNavigate, createRoute, useParams } from '@tanstack/react-router'
 import { Route as FRoute } from '../'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -10,8 +10,6 @@ import { api } from '../../../../convex/_generated/api'
 function PatientFeedbackFormPage() {
   const navigate = useNavigate()
   const { token } = useParams({ from: '/f/$token/form' })
-  const search = useSearch({ from: '/f/$token/form' })
-  const feeling = (search?.feeling as string) || 'no-value'
 
   const feedbackRequest = useQuery(api.feedback.getFeedbackRequestByToken, { token })
   const submitFeedback = useMutation(api.feedback.submitFeedback)
@@ -65,7 +63,7 @@ function PatientFeedbackFormPage() {
     return (
       <Card>
         <CardContent className="pt-6 text-center">
-          <AlertCircle className="mx-auto mb-2 h-8 w-8 text-yellow-600" />
+          <AlertCircle className="mx-auto mb-2 h-8 w-8 text-secondary" />
           <p className="text-sm text-muted-foreground">Loading feedback form...</p>
         </CardContent>
       </Card>
@@ -79,9 +77,10 @@ function PatientFeedbackFormPage() {
           key={star}
           onClick={() => onChange(star)}
           type="button"
+          aria-label={`${star} star${star > 1 ? 's' : ''}`}
           className="transition-transform hover:scale-125"
         >
-          <Star className={`h-6 w-6 ${star <= value ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+          <Star className={`h-9 w-9 ${star <= value ? 'fill-secondary text-secondary' : 'text-muted'}`} />
         </button>
       ))}
     </div>
@@ -89,50 +88,52 @@ function PatientFeedbackFormPage() {
 
   return (
     <Card>
-      <CardHeader className="space-y-2">
-        <CardTitle>Your Feedback</CardTitle>
-        <CardDescription>Help us improve your experience</CardDescription>
+      <CardHeader className="space-y-2 text-center">
+        <CardTitle>How was your visit?</CardTitle>
+        <CardDescription>Your feedback takes less than a minute and helps us care for you better.</CardDescription>
       </CardHeader>
       <CardContent>
         {error && (
-          <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800">
+          <div className="mb-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
             {error}
           </div>
         )}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-3">
-            <label className="text-sm font-medium">Overall Rating</label>
-            {renderStarRating(ratings.overall, (v) => setRatings({ ...ratings, overall: v }))}
+        <form onSubmit={handleSubmit} className="space-y-7">
+          <div className="space-y-3 rounded-2xl bg-muted/50 p-4 text-center">
+            <label className="text-base font-semibold">Overall, how was your visit?</label>
+            <div className="flex justify-center">
+              {renderStarRating(ratings.overall, (v) => setRatings({ ...ratings, overall: v }))}
+            </div>
           </div>
 
           <div className="space-y-3">
-            <label className="text-sm font-medium">How satisfied were you?</label>
+            <label className="text-sm font-medium">How satisfied were you overall?</label>
             {renderStarRating(ratings.satisfaction, (v) => setRatings({ ...ratings, satisfaction: v }))}
           </div>
 
           <div className="space-y-3">
-            <label className="text-sm font-medium">Did we explain your condition clearly?</label>
+            <label className="text-sm font-medium">Was everything explained clearly?</label>
             {renderStarRating(ratings.clarity, (v) => setRatings({ ...ratings, clarity: v }))}
           </div>
 
           <div className="space-y-3">
-            <label className="text-sm font-medium">Was the treatment helpful?</label>
+            <label className="text-sm font-medium">Did the service meet your needs?</label>
             {renderStarRating(ratings.helpfulness, (v) => setRatings({ ...ratings, helpfulness: v }))}
           </div>
 
           <div className="space-y-3">
-            <label className="text-sm font-medium">Would you recommend us?</label>
+            <label className="text-sm font-medium">Would you recommend us to others?</label>
             {renderStarRating(ratings.recommendation, (v) => setRatings({ ...ratings, recommendation: v }))}
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Additional Comments (optional)</label>
+            <label className="text-sm font-medium">Anything you'd like to share? (optional)</label>
             <textarea
               value={comments}
               onChange={(e) => setComments(e.target.value)}
               rows={3}
-              placeholder="Share any additional thoughts or suggestions..."
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              placeholder="Tell us what went well or how we can improve..."
+              className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           </div>
 

@@ -60,6 +60,8 @@ export const createClinic = mutation({
       reminderDelay: 48,
       checkInMessage: `Thank you for visiting {clinic_name}. How are you feeling after today's session?`,
       reminderMessage: `We'd love to hear about your experience. Have you had a chance to share your feedback?`,
+      // Universal starter list — clinics customize this in Settings.
+      services: ['Consultation', 'Follow-up', 'Treatment', 'Procedure', 'Review'],
       createdAt: Date.now(),
     })
 
@@ -90,6 +92,7 @@ export const updateClinicSettings = mutation({
     googleReviewUrl: v.optional(v.string()),
     checkInMessage: v.optional(v.string()),
     reminderMessage: v.optional(v.string()),
+    services: v.optional(v.array(v.string())),
   },
   handler: async (ctx, updates) => {
     const staffUser = await requireOwner(ctx)

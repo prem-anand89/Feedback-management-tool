@@ -9,14 +9,16 @@ function SorryPage() {
     <Card>
       <CardHeader className="space-y-2 text-center">
         <div className="flex justify-center">
-          <AlertCircle className="h-12 w-12 text-yellow-500" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary/15">
+            <AlertCircle className="h-9 w-9 text-secondary" />
+          </div>
         </div>
         <CardTitle>We're Sorry to Hear That</CardTitle>
         <CardDescription>Your feedback has been received</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="space-y-3 rounded-lg bg-yellow-50 p-4">
-          <p className="text-sm text-yellow-900">
+        <div className="space-y-3 rounded-2xl bg-secondary/10 p-4">
+          <p className="text-sm text-foreground">
             Thank you for sharing your honest feedback. We take your concerns seriously and a member of our team will reach out to you within 24 hours to discuss how we can improve your experience.
           </p>
         </div>

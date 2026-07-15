@@ -13,6 +13,10 @@ export default defineSchema({
     reminderDelay: v.number(), // hours
     checkInMessage: v.string(),
     reminderMessage: v.string(),
+    // Clinic-defined list of services/treatments. Staff pick one from this list
+    // when logging a visit. Universal across specialties (e.g. 'Consultation',
+    // 'Cleaning', 'Physio session') and editable in Settings.
+    services: v.optional(v.array(v.string())),
     createdAt: v.number(),
   })
     .index('by_owner', ['ownerUserId'])
@@ -32,7 +36,8 @@ export default defineSchema({
   patients: defineTable({
     clinicId: v.id('clinics'),
     name: v.string(),
-    email: v.string(),
+    // Email is rarely collected in practice — phone is the primary contact.
+    email: v.optional(v.string()),
     phone: v.string(),
     createdAt: v.number(),
   })
@@ -43,6 +48,9 @@ export default defineSchema({
     clinicId: v.id('clinics'),
     patientId: v.id('patients'),
     therapistId: v.id('staffUsers'),
+    // What service/treatment the patient underwent this visit. Free text so it
+    // works for any specialty (dental, physio, derma, etc.).
+    serviceContext: v.optional(v.string()),
     completedAt: v.optional(v.number()),
     notes: v.optional(v.string()),
     createdAt: v.number(),
@@ -71,11 +79,13 @@ export default defineSchema({
     feedbackRequestId: v.id('feedbackRequests'),
     patientId: v.id('patients'),
     therapistId: v.id('staffUsers'),
-    rating: v.number(), // 1-5
-    satisfaction: v.number(), // 1-5
-    explanationClarity: v.number(), // 1-5
-    treatmentHelpfulness: v.number(), // 1-5
-    recommendation: v.number(), // 1-5
+    rating: v.number(), // 1-5, overall (required)
+    // Optional sub-ratings. The simplified universal form may collect only the
+    // overall rating; these are filled in when the patient opts to rate more.
+    satisfaction: v.optional(v.number()), // 1-5
+    explanationClarity: v.optional(v.number()), // 1-5
+    treatmentHelpfulness: v.optional(v.number()), // 1-5
+    recommendation: v.optional(v.number()), // 1-5
     comments: v.string(),
     imageUrl: v.optional(v.string()),
     submittedAt: v.number(),

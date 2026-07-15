@@ -9,15 +9,17 @@ function ThankYouPage() {
     <Card>
       <CardHeader className="space-y-2 text-center">
         <div className="flex justify-center">
-          <CheckCircle className="h-12 w-12 text-green-500" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+            <CheckCircle className="h-9 w-9 text-primary" />
+          </div>
         </div>
         <CardTitle>Thank You!</CardTitle>
         <CardDescription>Your feedback has been submitted successfully</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="space-y-3 rounded-lg bg-blue-50 p-4">
-          <p className="text-sm font-medium text-blue-900">Support Our Clinic</p>
-          <p className="text-sm text-blue-800">If you'd like to support our clinic and help future patients find us, we'd greatly appreciate a Google Review.</p>
+        <div className="space-y-2 rounded-2xl bg-accent p-4">
+          <p className="text-sm font-semibold text-accent-foreground">Support Our Clinic</p>
+          <p className="text-sm text-muted-foreground">If you'd like to help future patients find us, we'd greatly appreciate a Google Review.</p>
         </div>
 
         <Button asChild className="w-full" size="lg">

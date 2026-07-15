@@ -35,15 +35,17 @@ export const getPatientInternal = internalQuery({
 export const createPatient = mutation({
   args: {
     name: v.string(),
-    email: v.string(),
+    email: v.optional(v.string()),
     phone: v.string(),
   },
   handler: async (ctx, { name, email, phone }) => {
     const staffUser = await requireStaffUser(ctx)
+    // Email is rarely collected; only persist it when actually provided.
+    const trimmedEmail = email?.trim()
     const patientId = await ctx.db.insert('patients', {
       clinicId: staffUser.clinicId,
       name,
-      email,
+      ...(trimmedEmail ? { email: trimmedEmail } : {}),
       phone,
       createdAt: Date.now(),
     })

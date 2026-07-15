@@ -53,7 +53,7 @@ function SetupPage() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <div className="mb-4 flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <Stethoscope className="h-6 w-6" />
             </div>
             <div>
@@ -77,12 +77,12 @@ function SetupPage() {
                 value={clinicName}
                 onChange={(e) => setClinicName(e.target.value)}
                 disabled={isLoading}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50"
+                className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
               />
             </div>
 
             {error && (
-              <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
+              <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
                 {error}
               </div>
             )}

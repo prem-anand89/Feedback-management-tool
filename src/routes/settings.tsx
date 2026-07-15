@@ -15,6 +15,7 @@ interface ClinicSettings {
   googleReviewUrl: string
   checkInMessage: string
   reminderMessage: string
+  services: string[]
 }
 
 function SettingsPage() {
@@ -24,6 +25,7 @@ function SettingsPage() {
   const updateClinicSettings = useMutation(api.clinics.updateClinicSettings)
 
   const [settings, setSettings] = useState<ClinicSettings | null>(null)
+  const [newService, setNewService] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -38,9 +40,26 @@ function SettingsPage() {
         googleReviewUrl: clinic.googleReviewUrl ?? '',
         checkInMessage: clinic.checkInMessage,
         reminderMessage: clinic.reminderMessage,
+        services: clinic.services ?? [],
       })
     }
   }, [clinic, settings])
+
+  const addService = () => {
+    if (!settings) return
+    const value = newService.trim()
+    if (!value || settings.services.includes(value)) {
+      setNewService('')
+      return
+    }
+    setSettings({ ...settings, services: [...settings.services, value] })
+    setNewService('')
+  }
+
+  const removeService = (service: string) => {
+    if (!settings) return
+    setSettings({ ...settings, services: settings.services.filter((s) => s !== service) })
+  }
 
   const handleSave = async () => {
     if (!settings) return
@@ -54,6 +73,7 @@ function SettingsPage() {
         googleReviewUrl: settings.googleReviewUrl,
         checkInMessage: settings.checkInMessage,
         reminderMessage: settings.reminderMessage,
+        services: settings.services,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save settings')
@@ -97,7 +117,7 @@ function SettingsPage() {
                   value={settings.clinicName}
                   onChange={(e) => setSettings({ ...settings, clinicName: e.target.value })}
                   disabled={!isOwner}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50"
+                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                 />
               </div>
             </CardContent>
@@ -109,7 +129,7 @@ function SettingsPage() {
               <CardDescription>Configure feedback request timing</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {!isOwner && <div className="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800">You need Owner role to change these settings</div>}
+              {!isOwner && <div className="rounded-xl bg-secondary/15 p-3 text-sm text-secondary-foreground">You need Owner role to change these settings</div>}
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Feedback Request Delay</label>
@@ -156,9 +176,65 @@ function SettingsPage() {
                   onChange={(e) => isOwner && setSettings({ ...settings, googleReviewUrl: e.target.value })}
                   disabled={!isOwner}
                   placeholder="https://google.com/maps/place/..."
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50"
+                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                 />
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Services</CardTitle>
+              <CardDescription>
+                The list of services/treatments staff choose from when logging a visit. Works for any specialty.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {settings.services.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No services yet. Add your first one below.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {settings.services.map((service) => (
+                    <span
+                      key={service}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground"
+                    >
+                      {service}
+                      {isOwner && (
+                        <button
+                          type="button"
+                          onClick={() => removeService(service)}
+                          className="text-muted-foreground transition hover:text-destructive"
+                          aria-label={`Remove ${service}`}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {isOwner && (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newService}
+                    onChange={(e) => setNewService(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addService()
+                      }
+                    }}
+                    placeholder="e.g. Consultation, Cleaning, X-ray"
+                    className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  />
+                  <Button type="button" variant="outline" onClick={addService}>
+                    Add
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -175,7 +251,7 @@ function SettingsPage() {
                   onChange={(e) => isOwner && setSettings({ ...settings, checkInMessage: e.target.value })}
                   disabled={!isOwner}
                   rows={3}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50"
+                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                 />
                 <p className="text-xs text-muted-foreground">Use {'{clinic_name}'} for dynamic clinic name</p>
               </div>
@@ -187,14 +263,14 @@ function SettingsPage() {
                   onChange={(e) => isOwner && setSettings({ ...settings, reminderMessage: e.target.value })}
                   disabled={!isOwner}
                   rows={3}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50"
+                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                 />
               </div>
             </CardContent>
           </Card>
 
           {error && (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
+            <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
               {error}
             </div>
           )}

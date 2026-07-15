@@ -29,9 +29,10 @@ export const createVisit = mutation({
   args: {
     patientId: v.id('patients'),
     therapistId: v.id('staffUsers'),
+    serviceContext: v.optional(v.string()),
     notes: v.optional(v.string()),
   },
-  handler: async (ctx, { patientId, therapistId, notes }) => {
+  handler: async (ctx, { patientId, therapistId, serviceContext, notes }) => {
     const staffUser = await requireStaffUser(ctx)
 
     const patient = await ctx.db.get(patientId)
@@ -43,10 +44,12 @@ export const createVisit = mutation({
       throw new Error('Therapist not found in this clinic')
     }
 
+    const trimmedService = serviceContext?.trim()
     const visitId = await ctx.db.insert('visits', {
       clinicId: staffUser.clinicId,
       patientId,
       therapistId,
+      ...(trimmedService ? { serviceContext: trimmedService } : {}),
       notes,
       createdAt: Date.now(),
     })

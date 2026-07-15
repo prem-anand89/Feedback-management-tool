@@ -3,10 +3,10 @@ import { Stethoscope } from 'lucide-react'
 
 export function PatientLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-b from-blue-50 to-white">
-      <header className="border-b bg-white/80 backdrop-blur">
+    <div className="flex min-h-screen flex-col bg-gradient-to-b from-accent/60 to-background">
+      <header className="border-b bg-card/80 backdrop-blur">
         <div className="mx-auto flex max-w-md items-center justify-center gap-2 px-4 py-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <Stethoscope className="h-5 w-5" />
           </div>
           <div>
@@ -20,7 +20,7 @@ export function PatientLayout({ children }: { children: ReactNode }) {
         <div className="w-full max-w-md">{children}</div>
       </main>
 
-      <footer className="border-t bg-white/50 py-3 text-center text-xs text-muted-foreground">
+      <footer className="border-t bg-card/50 py-3 text-center text-xs text-muted-foreground">
         <p>Your feedback helps us improve. Thank you for your time.</p>
       </footer>
     </div>

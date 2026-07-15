@@ -113,10 +113,10 @@ export const submitFeedback = mutation({
   args: {
     feedbackRequestId: v.id('feedbackRequests'),
     rating: v.number(),
-    satisfaction: v.number(),
-    explanationClarity: v.number(),
-    treatmentHelpfulness: v.number(),
-    recommendation: v.number(),
+    satisfaction: v.optional(v.number()),
+    explanationClarity: v.optional(v.number()),
+    treatmentHelpfulness: v.optional(v.number()),
+    recommendation: v.optional(v.number()),
     comments: v.string(),
   },
   handler: async (ctx, { feedbackRequestId, rating, satisfaction, explanationClarity, treatmentHelpfulness, recommendation, comments }) => {
@@ -129,16 +129,20 @@ export const submitFeedback = mutation({
     const visit = await ctx.db.get(feedbackRequest.visitId)
     if (!visit) throw new Error('Visit not found')
 
+    // Only persist sub-ratings the patient actually gave (> 0), so unanswered
+    // optional questions don't pollute analytics with zeroes.
+    const subRating = (value: number | undefined) => (value && value > 0 ? value : undefined)
+
     const responseId = await ctx.db.insert('feedbackResponses', {
       clinicId: feedbackRequest.clinicId,
       feedbackRequestId,
       patientId: feedbackRequest.patientId,
       therapistId: visit.therapistId,
       rating,
-      satisfaction,
-      explanationClarity,
-      treatmentHelpfulness,
-      recommendation,
+      satisfaction: subRating(satisfaction),
+      explanationClarity: subRating(explanationClarity),
+      treatmentHelpfulness: subRating(treatmentHelpfulness),
+      recommendation: subRating(recommendation),
       comments,
       submittedAt: Date.now(),
     })
