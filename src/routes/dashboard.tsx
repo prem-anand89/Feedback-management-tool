@@ -2,11 +2,10 @@ import { createRoute } from '@tanstack/react-router'
 import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { MessageSquare, AlertCircle, CheckCircle, Star, ThumbsUp } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { MessageSquare, AlertCircle, CheckCircle, Star, Percent } from 'lucide-react'
 import { useQuery, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
-import { monthlyTrendData } from '@/lib/mock-data'
 
 function DashboardPage() {
   const { isAuthenticated } = useConvexAuth()
@@ -23,20 +22,50 @@ function DashboardPage() {
   }).length
 
   const pendingFeedback = feedbackRequests.filter((f) => f.status === 'pending').length
+  const respondedFeedback = feedbackRequests.filter((f) => f.status === 'responded').length
+  const responseRate = feedbackRequests.length > 0
+    ? Math.round((respondedFeedback / feedbackRequests.length) * 100)
+    : 0
+
   const avgRating = feedbackResponses.length > 0
     ? (feedbackResponses.reduce((sum, f) => sum + f.rating, 0) / feedbackResponses.length).toFixed(1)
     : '0'
-  const googleReviews = 12
+
+  const highRatings = feedbackResponses.filter((f) => f.rating >= 4).length
+  const lowRatings = feedbackResponses.filter((f) => f.rating <= 2).length
+
   const complaintCount = complaints.filter((c) => c.status === 'pending' || c.status === 'in-progress').length
   const resolved = complaints.filter((c) => c.status === 'resolved').length
+  const totalComplaints = complaints.length
 
   const recentActivity = [
-    ...feedbackResponses.slice(-3).map((f) => ({
+    ...feedbackResponses.map((f) => ({
       id: f._id,
-      message: `New feedback received: ${f.rating}★ rating`,
-      timestamp: new Date(f.submittedAt).toLocaleString(),
+      message: `Feedback received: ${f.rating}★ rating`,
+      timestamp: new Date(f.submittedAt).getTime(),
+      type: 'feedback' as const,
     })),
-  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 5)
+    ...complaints.map((c) => ({
+      id: c._id,
+      message: `Complaint: ${c.priority} priority`,
+      timestamp: c.createdAt,
+      type: 'complaint' as const,
+    })),
+  ]
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 5)
+    .map((a) => ({
+      ...a,
+      timestamp: new Date(a.timestamp).toLocaleString(),
+    }))
+
+  const monthlyData = [
+    {
+      month: 'Last 7 days',
+      requests: feedbackRequests.filter((f) => Date.now() - f.sentAt < 7 * 24 * 60 * 60 * 1000).length,
+      responses: feedbackResponses.filter((f) => Date.now() - f.submittedAt < 7 * 24 * 60 * 60 * 1000).length,
+    },
+  ]
 
   if (isAuthenticated && staffUser === null) {
     return (
@@ -59,7 +88,7 @@ function DashboardPage() {
           <p className="text-muted-foreground">Welcome back! Here's your clinic's feedback overview.</p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Today's Feedback</CardTitle>
@@ -67,18 +96,18 @@ function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{todayFeedback}</div>
-              <p className="text-xs text-muted-foreground">feedback requests</p>
+              <p className="text-xs text-muted-foreground">feedback requests sent</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Feedback</CardTitle>
-              <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Response Rate</CardTitle>
+              <Percent className="h-4 w-4 text-blue-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{pendingFeedback}</div>
-              <p className="text-xs text-muted-foreground">awaiting response</p>
+              <div className="text-2xl font-bold">{responseRate}%</div>
+              <p className="text-xs text-muted-foreground">{respondedFeedback} of {feedbackRequests.length} responses</p>
             </CardContent>
           </Card>
 
@@ -89,40 +118,18 @@ function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{avgRating}</div>
-              <p className="text-xs text-muted-foreground">out of 5 stars</p>
+              <p className="text-xs text-muted-foreground">out of 5 stars ({feedbackResponses.length} total)</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Google Reviews</CardTitle>
-              <ThumbsUp className="h-4 w-4 text-blue-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{googleReviews}</div>
-              <p className="text-xs text-muted-foreground">this month</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Complaints</CardTitle>
+              <CardTitle className="text-sm font-medium">Open Complaints</CardTitle>
               <AlertCircle className="h-4 w-4 text-red-400" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{complaintCount}</div>
-              <p className="text-xs text-muted-foreground">open issues</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Resolved</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{resolved}</div>
-              <p className="text-xs text-muted-foreground">this month</p>
+              <p className="text-xs text-muted-foreground">{resolved} resolved of {totalComplaints} total</p>
             </CardContent>
           </Card>
         </div>
@@ -154,17 +161,23 @@ function DashboardPage() {
               <CardDescription>Feedback requests and responses</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={monthlyTrendData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="requests" stroke="#0ea5e9" />
-                  <Line type="monotone" dataKey="responses" stroke="#06b6d4" />
-                </LineChart>
-              </ResponsiveContainer>
+              {monthlyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={monthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="requests" fill="#0ea5e9" />
+                    <Bar dataKey="responses" fill="#06b6d4" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                  No data yet
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
