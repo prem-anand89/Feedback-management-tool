@@ -98,6 +98,67 @@ export const sendFeedbackRequest = internalAction({
   },
 })
 
+export const sendAppointmentReminder = internalAction({
+  args: {
+    appointmentId: v.id('appointments'),
+    clinicId: v.id('clinics'),
+    patientId: v.id('patients'),
+  },
+  handler: async (ctx, { appointmentId, clinicId, patientId }) => {
+    const appointment = await ctx.runQuery(internal.appointments.getAppointmentInternal, {
+      appointmentId,
+    })
+    // Skip silently if the appointment was cancelled/rescheduled since this
+    // reminder was scheduled — the job wasn't cancelled in time, or this is
+    // a stale run.
+    if (!appointment || appointment.status !== 'scheduled') {
+      return { success: false, error: 'Appointment no longer scheduled' }
+    }
+
+    const patient = await ctx.runQuery(internal.patients.getPatientInternal, { patientId })
+    if (!patient) {
+      return { success: false, error: 'Patient not found' }
+    }
+
+    const clinic = await ctx.runQuery(internal.clinics.getClinic, { clinicId })
+    if (!clinic) {
+      return { success: false, error: 'Clinic not found' }
+    }
+
+    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN
+    const phoneNumberId = process.env.VITE_WHATSAPP_PHONE_NUMBER_ID
+
+    const when = new Date(appointment.scheduledAt).toLocaleString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+
+    const template =
+      clinic.appointmentReminderMessage ||
+      `Hi {patient_name}, this is a reminder of your appointment at {clinic_name} on {appointment_time}.`
+
+    const message = template
+      .replace('{patient_name}', patient.name)
+      .replace('{clinic_name}', clinic.name)
+      .replace('{appointment_time}', when)
+
+    const success = await sendWhatsAppMessage(patient.phone, message, accessToken, phoneNumberId)
+
+    await ctx.runMutation(internal.whatsapp.logAutomation, {
+      clinicId,
+      workflow: 'send_appointment_reminder',
+      entityId: appointmentId,
+      result: success ? 'success' : 'failure',
+      errorMessage: success ? undefined : 'WhatsApp send failed or not configured',
+    })
+
+    return { success, appointmentId }
+  },
+})
+
 export const sendReminder = internalAction({
   args: {
     feedbackRequestId: v.id('feedbackRequests'),

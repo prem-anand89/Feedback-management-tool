@@ -3,6 +3,7 @@ import { Route as LoginRoute } from './routes/login'
 import { Route as SignUpRoute } from './routes/signup'
 import { Route as SetupRoute } from './routes/setup'
 import { Route as DashboardRoute } from './routes/dashboard'
+import { Route as AppointmentsRoute } from './routes/appointments'
 import { Route as FeedbackRoute } from './routes/feedback'
 import { Route as ComplaintsRoute } from './routes/complaints'
 import { Route as PatientsRoute } from './routes/patients'
@@ -20,6 +21,7 @@ export const routeTree = RootRoute.addChildren([
   SignUpRoute,
   SetupRoute,
   DashboardRoute,
+  AppointmentsRoute,
   FeedbackRoute,
   ComplaintsRoute,
   PatientsRoute,

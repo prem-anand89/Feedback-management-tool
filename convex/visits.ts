@@ -71,6 +71,39 @@ async function markVisitComplete(ctx: MutationCtx, visitId: Id<'visits'>, visit:
   return visitId
 }
 
+// Inserts a visit that's already complete (staff confirming an appointment
+// happened, rather than logging a walk-in), and kicks off the same feedback
+// pipeline as any other completed visit. Used by appointments.completeAppointment
+// so booking and manual visit logging both funnel into one feedback path.
+export async function insertCompletedVisit(
+  ctx: MutationCtx,
+  args: {
+    clinicId: Id<'clinics'>
+    patientId: Id<'patients'>
+    therapistId: Id<'staffUsers'>
+    serviceContext?: string
+    notes?: string
+  },
+) {
+  const visitId = await ctx.db.insert('visits', {
+    clinicId: args.clinicId,
+    patientId: args.patientId,
+    therapistId: args.therapistId,
+    ...(args.serviceContext ? { serviceContext: args.serviceContext } : {}),
+    notes: args.notes,
+    completedAt: Date.now(),
+    createdAt: Date.now(),
+  })
+
+  await ctx.scheduler.runAfter(0, internal.feedback.scheduleFollowUp, {
+    visitId,
+    clinicId: args.clinicId,
+    patientId: args.patientId,
+  })
+
+  return visitId
+}
+
 // Staff-triggered manual completion (e.g. a "mark done" button in the app).
 export const completeVisit = mutation({
   args: { visitId: v.id('visits') },

@@ -6,6 +6,7 @@ import {
   Inbox,
   AlertTriangle,
   Users,
+  CalendarClock,
   BarChart3,
   Settings as SettingsIcon,
   LogOut,
@@ -18,6 +19,7 @@ import { cn } from '@/lib/utils'
 
 const nav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/appointments', label: 'Appointments', icon: CalendarClock },
   { to: '/feedback', label: 'Feedback Inbox', icon: Inbox },
   { to: '/complaints', label: 'Complaints', icon: AlertTriangle },
   { to: '/patients', label: 'Patients', icon: Users },

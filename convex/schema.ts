@@ -17,6 +17,9 @@ export default defineSchema({
     // when logging a visit. Universal across specialties (e.g. 'Consultation',
     // 'Cleaning', 'Physio session') and editable in Settings.
     services: v.optional(v.array(v.string())),
+    // How long before a scheduled appointment to send the WhatsApp reminder.
+    appointmentReminderLeadHours: v.optional(v.number()), // hours
+    appointmentReminderMessage: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index('by_owner', ['ownerUserId'])
@@ -59,6 +62,36 @@ export default defineSchema({
     .index('by_patient', ['patientId'])
     .index('by_therapist', ['therapistId'])
     .index('by_completed', ['clinicId', 'completedAt']),
+
+  appointments: defineTable({
+    clinicId: v.id('clinics'),
+    patientId: v.id('patients'),
+    therapistId: v.id('staffUsers'),
+    serviceContext: v.optional(v.string()),
+    scheduledAt: v.number(), // ms epoch of the appointment start time
+    durationMinutes: v.optional(v.number()),
+    status: v.union(
+      v.literal('scheduled'),
+      v.literal('completed'),
+      v.literal('cancelled'),
+      v.literal('no-show'),
+    ),
+    notes: v.optional(v.string()),
+    // Set once the appointment is completed and a visit has been created for it.
+    visitId: v.optional(v.id('visits')),
+    completedAt: v.optional(v.number()),
+    cancelledAt: v.optional(v.number()),
+    cancelReason: v.optional(v.string()),
+    // The scheduled reminder job's id, so it can be cancelled if the
+    // appointment is rescheduled or cancelled before the reminder fires.
+    // Stored as a string (not v.id) since it references a system table.
+    reminderJobId: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index('by_clinic', ['clinicId'])
+    .index('by_clinic_scheduled', ['clinicId', 'scheduledAt'])
+    .index('by_patient', ['patientId'])
+    .index('by_therapist', ['therapistId']),
 
   feedbackRequests: defineTable({
     clinicId: v.id('clinics'),

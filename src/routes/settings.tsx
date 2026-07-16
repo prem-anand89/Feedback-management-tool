@@ -17,6 +17,8 @@ interface ClinicSettings {
   checkInMessage: string
   reminderMessage: string
   services: string[]
+  appointmentReminderLeadHours: string
+  appointmentReminderMessage: string
 }
 
 function SettingsPage() {
@@ -44,6 +46,10 @@ function SettingsPage() {
         checkInMessage: clinic.checkInMessage,
         reminderMessage: clinic.reminderMessage,
         services: clinic.services ?? [],
+        appointmentReminderLeadHours: String(clinic.appointmentReminderLeadHours ?? 24),
+        appointmentReminderMessage:
+          clinic.appointmentReminderMessage ??
+          'Hi {patient_name}, this is a reminder of your appointment at {clinic_name} on {appointment_time}.',
       })
     }
   }, [clinic, settings])
@@ -101,6 +107,8 @@ function SettingsPage() {
         checkInMessage: settings.checkInMessage,
         reminderMessage: settings.reminderMessage,
         services: settings.services,
+        appointmentReminderLeadHours: Number(settings.appointmentReminderLeadHours),
+        appointmentReminderMessage: settings.appointmentReminderMessage,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save settings')
@@ -185,6 +193,47 @@ function SettingsPage() {
                     <SelectItem value="72">72 Hours</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Appointment Reminders</CardTitle>
+              <CardDescription>Configure the WhatsApp reminder sent before a scheduled appointment</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Send Reminder Before Appointment</label>
+                <Select
+                  value={settings.appointmentReminderLeadHours}
+                  onValueChange={(value) => isOwner && setSettings({ ...settings, appointmentReminderLeadHours: value })}
+                  disabled={!isOwner}
+                >
+                  <SelectTrigger disabled={!isOwner}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 Hour</SelectItem>
+                    <SelectItem value="2">2 Hours</SelectItem>
+                    <SelectItem value="24">24 Hours</SelectItem>
+                    <SelectItem value="48">48 Hours</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Reminder Message</label>
+                <textarea
+                  value={settings.appointmentReminderMessage}
+                  onChange={(e) => isOwner && setSettings({ ...settings, appointmentReminderMessage: e.target.value })}
+                  disabled={!isOwner}
+                  rows={2}
+                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use {'{patient_name}'}, {'{clinic_name}'}, and {'{appointment_time}'} for dynamic values
+                </p>
               </div>
             </CardContent>
           </Card>

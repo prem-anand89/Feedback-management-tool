@@ -62,6 +62,8 @@ export const createClinic = mutation({
       reminderMessage: `We'd love to hear about your experience. Have you had a chance to share your feedback?`,
       // Universal starter list — clinics customize this in Settings.
       services: ['Consultation', 'Follow-up', 'Treatment', 'Procedure', 'Review'],
+      appointmentReminderLeadHours: 24,
+      appointmentReminderMessage: `Hi {patient_name}, this is a reminder of your appointment at {clinic_name} on {appointment_time}.`,
       createdAt: Date.now(),
     })
 
@@ -93,6 +95,8 @@ export const updateClinicSettings = mutation({
     checkInMessage: v.optional(v.string()),
     reminderMessage: v.optional(v.string()),
     services: v.optional(v.array(v.string())),
+    appointmentReminderLeadHours: v.optional(v.number()),
+    appointmentReminderMessage: v.optional(v.string()),
   },
   handler: async (ctx, updates) => {
     const staffUser = await requireOwner(ctx)
