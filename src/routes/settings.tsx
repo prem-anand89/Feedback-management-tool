@@ -5,6 +5,7 @@ import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Pencil, X, Check } from 'lucide-react'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 
@@ -26,6 +27,8 @@ function SettingsPage() {
 
   const [settings, setSettings] = useState<ClinicSettings | null>(null)
   const [newService, setNewService] = useState('')
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
+  const [editingValue, setEditingValue] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -56,10 +59,34 @@ function SettingsPage() {
     setNewService('')
   }
 
-  const removeService = (service: string) => {
+  const removeService = (index: number) => {
     if (!settings) return
-    setSettings({ ...settings, services: settings.services.filter((s) => s !== service) })
+    setSettings({ ...settings, services: settings.services.filter((_, i) => i !== index) })
+    if (editingIndex === index) setEditingIndex(null)
   }
+
+  const startEditingService = (index: number) => {
+    if (!settings) return
+    setEditingIndex(index)
+    setEditingValue(settings.services[index])
+  }
+
+  const commitEditingService = () => {
+    if (!settings || editingIndex === null) return
+    const value = editingValue.trim()
+    if (!value) {
+      // Empty rename removes the service instead of leaving a blank entry.
+      removeService(editingIndex)
+      return
+    }
+    setSettings({
+      ...settings,
+      services: settings.services.map((s, i) => (i === editingIndex ? value : s)),
+    })
+    setEditingIndex(null)
+  }
+
+  const cancelEditingService = () => setEditingIndex(null)
 
   const handleSave = async () => {
     if (!settings) return
@@ -194,24 +221,75 @@ function SettingsPage() {
                 <p className="text-sm text-muted-foreground">No services yet. Add your first one below.</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {settings.services.map((service) => (
-                    <span
-                      key={service}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground"
-                    >
-                      {service}
-                      {isOwner && (
+                  {settings.services.map((service, index) =>
+                    editingIndex === index ? (
+                      <span
+                        key={index}
+                        className="inline-flex items-center gap-1 rounded-full border border-primary bg-card px-2 py-1"
+                      >
+                        <input
+                          autoFocus
+                          type="text"
+                          value={editingValue}
+                          onChange={(e) => setEditingValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              commitEditingService()
+                            }
+                            if (e.key === 'Escape') {
+                              e.preventDefault()
+                              cancelEditingService()
+                            }
+                          }}
+                          className="w-32 bg-transparent px-1 text-sm font-medium outline-none"
+                        />
                         <button
                           type="button"
-                          onClick={() => removeService(service)}
-                          className="text-muted-foreground transition hover:text-destructive"
-                          aria-label={`Remove ${service}`}
+                          onClick={commitEditingService}
+                          className="text-primary transition hover:text-primary/70"
+                          aria-label="Save"
                         >
-                          ×
+                          <Check className="h-3.5 w-3.5" />
                         </button>
-                      )}
-                    </span>
-                  ))}
+                        <button
+                          type="button"
+                          onClick={cancelEditingService}
+                          className="text-muted-foreground transition hover:text-destructive"
+                          aria-label="Cancel"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    ) : (
+                      <span
+                        key={index}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground"
+                      >
+                        {service}
+                        {isOwner && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => startEditingService(index)}
+                              className="text-muted-foreground transition hover:text-primary"
+                              aria-label={`Rename ${service}`}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeService(index)}
+                              className="text-muted-foreground transition hover:text-destructive"
+                              aria-label={`Remove ${service}`}
+                            >
+                              ×
+                            </button>
+                          </>
+                        )}
+                      </span>
+                    ),
+                  )}
                 </div>
               )}
 

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -18,7 +18,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Soft warm scrollbars to match the approachable theme */
+/* Cool-neutral scrollbars to match the clinical theme */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -27,12 +27,12 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #e0d5c3;
+  background: #cbd5e1;
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #cdbfa8;
+  background: #94a3b8;
   background-clip: content-box;
 }

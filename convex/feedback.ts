@@ -51,6 +51,23 @@ export const getFeedbackRequestByToken = query({
   },
 })
 
+// Public, unauthenticated: the patient-facing feedback page needs the clinic
+// name to personalize the form, but the patient never signs in. Only the
+// clinic name is exposed — nothing else from the clinic record.
+export const getClinicNameForToken = query({
+  args: { token: v.string() },
+  handler: async (ctx, { token }) => {
+    const feedbackRequest = await ctx.db
+      .query('feedbackRequests')
+      .withIndex('by_token', (q) => q.eq('token', token))
+      .first()
+    if (!feedbackRequest) return null
+
+    const clinic = await ctx.db.get(feedbackRequest.clinicId)
+    return clinic ? clinic.name : null
+  },
+})
+
 // Internal-only: used by server-side workflows (WhatsApp reminders) that
 // need the feedback request without a caller identity.
 export const getFeedbackRequestInternal = internalQuery({
