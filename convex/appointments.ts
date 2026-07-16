@@ -112,6 +112,48 @@ export const getAppointmentInternal = internalQuery({
   },
 })
 
+// Shared by the staff-scheduled createAppointment mutation below and by
+// appointmentRequests.confirmAppointmentRequest, so both paths — staff
+// booking a visit directly, and staff confirming a patient's public request
+// — funnel through the same insertion + reminder-scheduling logic.
+export async function insertScheduledAppointment(
+  ctx: MutationCtx,
+  args: {
+    clinicId: Id<'clinics'>
+    patientId: Id<'patients'>
+    therapistId: Id<'staffUsers'>
+    scheduledAt: number
+    durationMinutes?: number
+    serviceContext?: string
+    notes?: string
+  },
+) {
+  const trimmedService = args.serviceContext?.trim()
+  const appointmentId = await ctx.db.insert('appointments', {
+    clinicId: args.clinicId,
+    patientId: args.patientId,
+    therapistId: args.therapistId,
+    ...(trimmedService ? { serviceContext: trimmedService } : {}),
+    scheduledAt: args.scheduledAt,
+    durationMinutes: args.durationMinutes,
+    status: 'scheduled',
+    notes: args.notes,
+    createdAt: Date.now(),
+  })
+
+  const reminderJobId = await scheduleReminder(ctx, {
+    appointmentId,
+    clinicId: args.clinicId,
+    patientId: args.patientId,
+    scheduledAt: args.scheduledAt,
+  })
+  if (reminderJobId) {
+    await ctx.db.patch(appointmentId, { reminderJobId })
+  }
+
+  return appointmentId
+}
+
 export const createAppointment = mutation({
   args: {
     patientId: v.id('patients'),
@@ -136,30 +178,15 @@ export const createAppointment = mutation({
       throw new Error('Appointment time must be in the future')
     }
 
-    const trimmedService = serviceContext?.trim()
-    const appointmentId = await ctx.db.insert('appointments', {
+    return await insertScheduledAppointment(ctx, {
       clinicId: staffUser.clinicId,
       patientId,
       therapistId,
-      ...(trimmedService ? { serviceContext: trimmedService } : {}),
       scheduledAt,
       durationMinutes,
-      status: 'scheduled',
+      serviceContext,
       notes,
-      createdAt: Date.now(),
     })
-
-    const reminderJobId = await scheduleReminder(ctx, {
-      appointmentId,
-      clinicId: staffUser.clinicId,
-      patientId,
-      scheduledAt,
-    })
-    if (reminderJobId) {
-      await ctx.db.patch(appointmentId, { reminderJobId })
-    }
-
-    return appointmentId
   },
 })
 

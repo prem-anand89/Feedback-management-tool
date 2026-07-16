@@ -5,9 +5,11 @@ import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Pencil, X, Check } from 'lucide-react'
+import { Pencil, X, Check, Copy } from 'lucide-react'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 interface ClinicSettings {
   clinicName: string
@@ -19,6 +21,10 @@ interface ClinicSettings {
   services: string[]
   appointmentReminderLeadHours: string
   appointmentReminderMessage: string
+  whatsappNumber: string
+  bookingTimeSlotsText: string
+  bookingClosedDays: number[]
+  bookingWindowDays: string
 }
 
 function SettingsPage() {
@@ -50,6 +56,15 @@ function SettingsPage() {
         appointmentReminderMessage:
           clinic.appointmentReminderMessage ??
           'Hi {patient_name}, this is a reminder of your appointment at {clinic_name} on {appointment_time}.',
+        whatsappNumber: clinic.whatsappNumber ?? clinic.contactPhone ?? '',
+        bookingTimeSlotsText: (
+          clinic.bookingTimeSlots ?? [
+            '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
+            '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM',
+          ]
+        ).join(', '),
+        bookingClosedDays: clinic.bookingClosedDays ?? [0],
+        bookingWindowDays: String(clinic.bookingWindowDays ?? 90),
       })
     }
   }, [clinic, settings])
@@ -94,6 +109,15 @@ function SettingsPage() {
 
   const cancelEditingService = () => setEditingIndex(null)
 
+  const toggleClosedDay = (day: number) => {
+    if (!settings) return
+    const has = settings.bookingClosedDays.includes(day)
+    setSettings({
+      ...settings,
+      bookingClosedDays: has ? settings.bookingClosedDays.filter((d) => d !== day) : [...settings.bookingClosedDays, day].sort(),
+    })
+  }
+
   const handleSave = async () => {
     if (!settings) return
     setIsSaving(true)
@@ -109,6 +133,13 @@ function SettingsPage() {
         services: settings.services,
         appointmentReminderLeadHours: Number(settings.appointmentReminderLeadHours),
         appointmentReminderMessage: settings.appointmentReminderMessage,
+        whatsappNumber: settings.whatsappNumber || undefined,
+        bookingTimeSlots: settings.bookingTimeSlotsText
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
+        bookingClosedDays: settings.bookingClosedDays,
+        bookingWindowDays: Number(settings.bookingWindowDays),
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save settings')
@@ -234,6 +265,99 @@ function SettingsPage() {
                 <p className="text-xs text-muted-foreground">
                   Use {'{patient_name}'}, {'{clinic_name}'}, and {'{appointment_time}'} for dynamic values
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Online Booking</CardTitle>
+              <CardDescription>
+                Patients request an appointment from a public form — you confirm it, nothing is auto-scheduled.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {clinic && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Your Booking Link</label>
+                  <div className="flex gap-2">
+                    <input
+                      readOnly
+                      value={`${window.location.origin}/book/${clinic._id}`}
+                      className="w-full rounded-xl border border-input bg-muted px-3.5 py-2.5 text-sm text-muted-foreground"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => navigator.clipboard.writeText(`${window.location.origin}/book/${clinic._id}`)}
+                      title="Copy link"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Share this link, or embed it as an iframe, on your own website.</p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">WhatsApp Number</label>
+                <input
+                  type="tel"
+                  value={settings.whatsappNumber}
+                  onChange={(e) => isOwner && setSettings({ ...settings, whatsappNumber: e.target.value })}
+                  disabled={!isOwner}
+                  placeholder="e.g. 919876543210 (country code, no + or spaces)"
+                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                />
+                <p className="text-xs text-muted-foreground">
+                  When a patient submits a request, WhatsApp opens on their device with this number pre-filled.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Available Time Slots</label>
+                <textarea
+                  value={settings.bookingTimeSlotsText}
+                  onChange={(e) => isOwner && setSettings({ ...settings, bookingTimeSlotsText: e.target.value })}
+                  disabled={!isOwner}
+                  rows={2}
+                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                />
+                <p className="text-xs text-muted-foreground">Comma-separated, e.g. "09:00 AM, 09:30 AM, 02:00 PM"</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Closed Days</label>
+                <div className="flex flex-wrap gap-2">
+                  {WEEKDAYS.map((day, index) => (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => isOwner && toggleClosedDay(index)}
+                      disabled={!isOwner}
+                      className={`rounded-full px-3 py-1.5 text-sm font-medium transition disabled:opacity-50 ${
+                        settings.bookingClosedDays.includes(index)
+                          ? 'bg-destructive/10 text-destructive'
+                          : 'bg-accent text-accent-foreground'
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Booking Window (days ahead)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={settings.bookingWindowDays}
+                  onChange={(e) => isOwner && setSettings({ ...settings, bookingWindowDays: e.target.value })}
+                  disabled={!isOwner}
+                  className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                />
               </div>
             </CardContent>
           </Card>

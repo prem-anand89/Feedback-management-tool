@@ -1,5 +1,6 @@
-import { mutation, query, internalQuery } from './_generated/server'
+import { mutation, query, internalQuery, MutationCtx } from './_generated/server'
 import { v } from 'convex/values'
+import { Id } from './_generated/dataModel'
 import { requireStaffUser } from './lib/auth'
 
 export const listPatients = query({
@@ -31,6 +32,30 @@ export const getPatientInternal = internalQuery({
     return await ctx.db.get(patientId)
   },
 })
+
+// Matches an incoming public booking request to an existing patient by
+// phone within the clinic, or creates a new one. Used when staff confirm an
+// appointment request — the patient submitted a name/phone with no prior
+// account, so this is the point where a real patient record gets attached.
+export async function findOrCreatePatient(
+  ctx: MutationCtx,
+  args: { clinicId: Id<'clinics'>; name: string; phone: string; email?: string },
+): Promise<Id<'patients'>> {
+  const existing = await ctx.db
+    .query('patients')
+    .withIndex('by_clinic', (q) => q.eq('clinicId', args.clinicId))
+    .filter((q) => q.eq(q.field('phone'), args.phone))
+    .first()
+  if (existing) return existing._id
+
+  return await ctx.db.insert('patients', {
+    clinicId: args.clinicId,
+    name: args.name,
+    phone: args.phone,
+    ...(args.email ? { email: args.email } : {}),
+    createdAt: Date.now(),
+  })
+}
 
 export const createPatient = mutation({
   args: {

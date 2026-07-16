@@ -4,7 +4,7 @@ import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CalendarClock, Plus, Clock, CheckCircle2, XCircle } from 'lucide-react'
+import { CalendarClock, Plus, Clock, CheckCircle2, XCircle, MessageSquareText } from 'lucide-react'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 
@@ -29,18 +29,33 @@ function dayLabel(ts: number) {
   return date.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })
 }
 
+// "09:00 AM" / "02:30 PM" -> "09:00" / "14:30", for prefilling a
+// datetime-local input from a patient's preferred slot string.
+function slotTo24h(slot: string): string {
+  const match = slot.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+  if (!match) return '09:00'
+  let [, hh, mm, period] = match
+  let hours = parseInt(hh, 10)
+  if (period.toUpperCase() === 'PM' && hours !== 12) hours += 12
+  if (period.toUpperCase() === 'AM' && hours === 12) hours = 0
+  return `${String(hours).padStart(2, '0')}:${mm}`
+}
+
 function AppointmentsPage() {
   const { isAuthenticated } = useConvexAuth()
   const clinic = useQuery(api.clinics.getMyClinic, isAuthenticated ? {} : 'skip')
   const patients = useQuery(api.patients.listPatients, isAuthenticated ? {} : 'skip') ?? []
   const staffList = useQuery(api.clinics.listStaff, isAuthenticated ? {} : 'skip') ?? []
   const upcoming = useQuery(api.appointments.listUpcomingAppointments, isAuthenticated ? {} : 'skip') ?? []
+  const pendingRequests = useQuery(api.appointmentRequests.listPendingAppointmentRequests, isAuthenticated ? {} : 'skip') ?? []
 
   const createAppointment = useMutation(api.appointments.createAppointment)
   const completeAppointment = useMutation(api.appointments.completeAppointment)
   const cancelAppointment = useMutation(api.appointments.cancelAppointment)
   const rescheduleAppointment = useMutation(api.appointments.rescheduleAppointment)
   const markNoShow = useMutation(api.appointments.markNoShow)
+  const confirmAppointmentRequest = useMutation(api.appointmentRequests.confirmAppointmentRequest)
+  const updateRequestStatus = useMutation(api.appointmentRequests.updateAppointmentRequestStatus)
 
   const services = clinic?.services ?? []
 
@@ -52,6 +67,9 @@ function AppointmentsPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [reschedulingId, setReschedulingId] = useState<string | null>(null)
   const [rescheduleDateTime, setRescheduleDateTime] = useState('')
+  const [confirmingRequestId, setConfirmingRequestId] = useState<string | null>(null)
+  const [confirmDateTime, setConfirmDateTime] = useState('')
+  const [confirmTherapistId, setConfirmTherapistId] = useState('')
   const [error, setError] = useState('')
 
   const patientName = (id: string) => patients.find((p) => p._id === id)?.name ?? 'Unknown patient'
@@ -108,6 +126,45 @@ function AppointmentsPage() {
     }
   }
 
+  const startConfirmRequest = (request: any) => {
+    setConfirmingRequestId(request._id)
+    setConfirmDateTime(`${request.preferredDate}T${slotTo24h(request.preferredTime)}`)
+    setConfirmTherapistId('')
+  }
+
+  const commitConfirmRequest = async (requestId: string) => {
+    if (!confirmDateTime || !confirmTherapistId) {
+      setError('Pick a therapist before confirming')
+      return
+    }
+    try {
+      await confirmAppointmentRequest({
+        requestId: requestId as any,
+        therapistId: confirmTherapistId as any,
+        scheduledAt: new Date(confirmDateTime).getTime(),
+      })
+      setConfirmingRequestId(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to confirm request')
+    }
+  }
+
+  const rejectRequest = async (requestId: string) => {
+    try {
+      await updateRequestStatus({ requestId: requestId as any, status: 'rejected' })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update request')
+    }
+  }
+
+  const markRequestNoResponse = async (requestId: string) => {
+    try {
+      await updateRequestStatus({ requestId: requestId as any, status: 'no-response' })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update request')
+    }
+  }
+
   return (
     <StaffLayout>
       <div className="space-y-6">
@@ -121,6 +178,86 @@ function AppointmentsPage() {
             Schedule Appointment
           </Button>
         </div>
+
+        {pendingRequests.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <MessageSquareText className="h-4 w-4 text-secondary" />
+                Appointment Requests
+                <span className="rounded-full bg-secondary/15 px-2 py-0.5 text-xs font-semibold text-secondary-foreground">
+                  {pendingRequests.length}
+                </span>
+              </CardTitle>
+              <CardDescription>Submitted by patients — review and confirm to schedule, or decline.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {pendingRequests.map((req: any) => (
+                <div key={req._id} className="rounded-xl border border-border p-3.5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold">{req.patientName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {req.phone}
+                        {req.email && <> · {req.email}</>}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Requested {req.preferredDate} at {req.preferredTime}
+                        {req.reason && <> · {req.reason}</>}
+                      </p>
+                      {req.notes && <p className="text-xs text-muted-foreground">"{req.notes}"</p>}
+                    </div>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Button onClick={() => startConfirmRequest(req)} size="sm">
+                        <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                        Confirm
+                      </Button>
+                      <Button onClick={() => markRequestNoResponse(req._id)} size="sm" variant="ghost">
+                        No Response
+                      </Button>
+                      <Button
+                        onClick={() => rejectRequest(req._id)}
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+
+                  {confirmingRequestId === req._id && (
+                    <div className="mt-3 grid gap-2 border-t border-border pt-3 md:grid-cols-3">
+                      <input
+                        type="datetime-local"
+                        value={confirmDateTime}
+                        onChange={(e) => setConfirmDateTime(e.target.value)}
+                        className={inputClass}
+                      />
+                      <select value={confirmTherapistId} onChange={(e) => setConfirmTherapistId(e.target.value)} className={inputClass}>
+                        <option value="">Select a therapist…</option>
+                        {staffList.map((staff) => (
+                          <option key={staff._id} value={staff._id}>
+                            {staff.name}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => commitConfirmRequest(req._id)}>
+                          Save
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setConfirmingRequestId(null)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {error && <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+            </CardContent>
+          </Card>
+        )}
 
         {showSchedule && (
           <Card>

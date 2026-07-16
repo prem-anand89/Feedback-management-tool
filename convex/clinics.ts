@@ -64,6 +64,13 @@ export const createClinic = mutation({
       services: ['Consultation', 'Follow-up', 'Treatment', 'Procedure', 'Review'],
       appointmentReminderLeadHours: 24,
       appointmentReminderMessage: `Hi {patient_name}, this is a reminder of your appointment at {clinic_name} on {appointment_time}.`,
+      whatsappNumber: contactPhone,
+      bookingTimeSlots: [
+        '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
+        '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM',
+      ],
+      bookingClosedDays: [0],
+      bookingWindowDays: 90,
       createdAt: Date.now(),
     })
 
@@ -97,6 +104,11 @@ export const updateClinicSettings = mutation({
     services: v.optional(v.array(v.string())),
     appointmentReminderLeadHours: v.optional(v.number()),
     appointmentReminderMessage: v.optional(v.string()),
+    contactPhone: v.optional(v.string()),
+    whatsappNumber: v.optional(v.string()),
+    bookingTimeSlots: v.optional(v.array(v.string())),
+    bookingClosedDays: v.optional(v.array(v.number())),
+    bookingWindowDays: v.optional(v.number()),
   },
   handler: async (ctx, updates) => {
     const staffUser = await requireOwner(ctx)

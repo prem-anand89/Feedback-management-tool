@@ -20,6 +20,14 @@ export default defineSchema({
     // How long before a scheduled appointment to send the WhatsApp reminder.
     appointmentReminderLeadHours: v.optional(v.number()), // hours
     appointmentReminderMessage: v.optional(v.string()),
+    // Public appointment-request booking form (embeddable on the clinic's own
+    // website). The WhatsApp number the patient's own device messages when
+    // requesting — deliberately per-clinic, not the platform's shared number.
+    whatsappNumber: v.optional(v.string()),
+    bookingTimeSlots: v.optional(v.array(v.string())),
+    // Days of week closed to booking requests, 0 = Sunday ... 6 = Saturday.
+    bookingClosedDays: v.optional(v.array(v.number())),
+    bookingWindowDays: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index('by_owner', ['ownerUserId'])
@@ -92,6 +100,38 @@ export default defineSchema({
     .index('by_clinic_scheduled', ['clinicId', 'scheduledAt'])
     .index('by_patient', ['patientId'])
     .index('by_therapist', ['therapistId']),
+
+  // Patient-initiated appointment requests — submitted from the public,
+  // no-login embeddable booking form. Deliberately NOT the same as
+  // `appointments`: a request is a preference the patient submitted, not a
+  // confirmed booking. Staff review and either confirm it (which creates a
+  // real `appointments` row) or reject/mark it, per the "Request, not
+  // Confirmation" booking philosophy.
+  appointmentRequests: defineTable({
+    clinicId: v.id('clinics'),
+    patientName: v.string(),
+    phone: v.string(),
+    email: v.optional(v.string()),
+    preferredDate: v.string(), // "YYYY-MM-DD"
+    preferredTime: v.string(), // e.g. "09:00 AM", from the clinic's slot list
+    reason: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    status: v.union(
+      v.literal('pending'),
+      v.literal('confirmed'),
+      v.literal('completed'),
+      v.literal('cancelled'),
+      v.literal('no-response'),
+      v.literal('rejected'),
+    ),
+    source: v.optional(v.string()),
+    // Set once staff confirm the request into a real appointment.
+    appointmentId: v.optional(v.id('appointments')),
+    reviewedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index('by_clinic', ['clinicId'])
+    .index('by_clinic_status', ['clinicId', 'status']),
 
   feedbackRequests: defineTable({
     clinicId: v.id('clinics'),

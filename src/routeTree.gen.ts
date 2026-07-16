@@ -9,6 +9,7 @@ import { Route as ComplaintsRoute } from './routes/complaints'
 import { Route as PatientsRoute } from './routes/patients'
 import { Route as AnalyticsRoute } from './routes/analytics'
 import { Route as SettingsRoute } from './routes/settings'
+import { Route as BookRoute } from './routes/book.$clinicId'
 import { Route as FRoute } from './routes/f'
 import { Route as FTokenRoute } from './routes/f/$token'
 import { Route as FTokenIndexRoute } from './routes/f/$token/index'
@@ -27,6 +28,7 @@ export const routeTree = RootRoute.addChildren([
   PatientsRoute,
   AnalyticsRoute,
   SettingsRoute,
+  BookRoute,
   FRoute.addChildren([
     FTokenRoute.addChildren([
       FTokenIndexRoute,
