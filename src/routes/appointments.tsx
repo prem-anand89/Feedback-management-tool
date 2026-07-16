@@ -12,7 +12,7 @@ const inputClass =
   'w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50'
 
 const statusBadgeClass: Record<string, string> = {
-  scheduled: 'bg-secondary/15 text-secondary-foreground',
+  scheduled: 'bg-secondary/15 text-secondary',
   completed: 'bg-primary/10 text-primary',
   cancelled: 'bg-muted text-muted-foreground',
   'no-show': 'bg-destructive/10 text-destructive',
@@ -185,7 +185,7 @@ function AppointmentsPage() {
               <CardTitle className="flex items-center gap-2 text-lg">
                 <MessageSquareText className="h-4 w-4 text-secondary" />
                 Appointment Requests
-                <span className="rounded-full bg-secondary/15 px-2 py-0.5 text-xs font-semibold text-secondary-foreground">
+                <span className="rounded-full bg-secondary/15 px-2 py-0.5 text-xs font-semibold text-secondary">
                   {pendingRequests.length}
                 </span>
               </CardTitle>

@@ -195,7 +195,7 @@ function SettingsPage() {
               <CardDescription>Configure feedback request timing</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {!isOwner && <div className="rounded-xl bg-secondary/15 p-3 text-sm text-secondary-foreground">You need Owner role to change these settings</div>}
+              {!isOwner && <div className="rounded-xl bg-secondary/15 p-3 text-sm text-secondary">You need Owner role to change these settings</div>}
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Feedback Request Delay</label>

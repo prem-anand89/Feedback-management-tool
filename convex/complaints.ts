@@ -69,12 +69,18 @@ export const createComplaint = internalMutation({
     patientId: v.id('patients'),
   },
   handler: async (ctx, { clinicId, feedbackResponseId, patientId }) => {
+    // Default the assignee to the therapist involved in the visit that
+    // triggered this complaint — they're the natural first point of
+    // follow-up. Staff can reassign from the board.
+    const feedbackResponse = await ctx.db.get(feedbackResponseId)
+
     const complaintId = await ctx.db.insert('complaints', {
       clinicId,
       feedbackResponseId,
       patientId,
       priority: 'medium',
       status: 'pending',
+      assignedToId: feedbackResponse?.therapistId,
       notes: JSON.stringify([
         {
           author: 'system',
@@ -85,6 +91,23 @@ export const createComplaint = internalMutation({
       createdAt: Date.now(),
       updatedAt: Date.now(),
     })
+    return complaintId
+  },
+})
+
+export const assignComplaint = mutation({
+  args: {
+    complaintId: v.id('complaints'),
+    staffId: v.optional(v.id('staffUsers')),
+  },
+  handler: async (ctx, { complaintId, staffId }) => {
+    const staffUser = await requireStaffUser(ctx)
+    const complaint = await ctx.db.get(complaintId)
+    if (!complaint || complaint.clinicId !== staffUser.clinicId) {
+      throw new Error('Complaint not found')
+    }
+
+    await ctx.db.patch(complaintId, { assignedToId: staffId, updatedAt: Date.now() })
     return complaintId
   },
 })

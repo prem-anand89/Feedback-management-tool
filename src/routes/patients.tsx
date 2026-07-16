@@ -4,19 +4,31 @@ import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Mail, Phone, Plus, Stethoscope, CheckCircle2, Clock, CalendarClock, XCircle } from 'lucide-react'
+import { Phone, Plus, Stethoscope, Calendar, CalendarClock, MessageSquare, Star, XCircle } from 'lucide-react'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 
-const statusBadgeClass: Record<string, string> = {
-  scheduled: 'bg-secondary/15 text-secondary-foreground',
-  completed: 'bg-primary/10 text-primary',
-  cancelled: 'bg-muted text-muted-foreground',
-  'no-show': 'bg-destructive/10 text-destructive',
-}
-
 const inputClass =
   'w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50'
+
+const timelineIconClass: Record<string, string> = {
+  blue: 'bg-chipBlue text-chipBlue-foreground',
+  green: 'bg-chipGreen text-chipGreen-foreground',
+  amber: 'bg-chipAmber text-chipAmber-foreground',
+  purple: 'bg-chipPurple text-chipPurple-foreground',
+  muted: 'bg-muted text-muted-foreground',
+}
+
+interface TimelineEntry {
+  id: string
+  timestamp: number
+  kind: string
+  icon: any
+  color: keyof typeof timelineIconClass
+  title: string
+  subtitle?: string
+  actions?: { label: string; onClick: () => void; variant?: 'outline' | 'ghost' }[]
+}
 
 function PatientsPage() {
   const { isAuthenticated } = useConvexAuth()
@@ -25,6 +37,8 @@ function PatientsPage() {
   const patients = useQuery(api.patients.listPatients, isAuthenticated ? {} : 'skip') ?? []
   const visits = useQuery(api.visits.listVisits, isAuthenticated ? {} : 'skip') ?? []
   const staffList = useQuery(api.clinics.listStaff, isAuthenticated ? {} : 'skip') ?? []
+  const feedbackResponses = useQuery(api.feedback.listFeedbackResponses, isAuthenticated ? {} : 'skip') ?? []
+  const reviewRequests = useQuery(api.reviews.listReviewRequests, isAuthenticated ? {} : 'skip') ?? []
 
   const createPatient = useMutation(api.patients.createPatient)
   const createVisit = useMutation(api.visits.createVisit)
@@ -57,6 +71,95 @@ function PatientsPage() {
     api.appointments.listAppointmentsForPatient,
     selected ? { patientId: selected._id } : 'skip',
   ) ?? []
+
+  const therapistName = (id: string) => staffList.find((s) => s._id === id)?.name ?? 'the clinic'
+
+  // Appointments that already produced a visit are represented once (as the
+  // appointment entry) — the linked visit is suppressed to avoid a duplicate
+  // row for the common appointment -> complete -> visit path.
+  const linkedVisitIds = new Set(patientAppointments.map((a: any) => a.visitId).filter(Boolean))
+
+  const timeline: TimelineEntry[] = selected
+    ? [
+        ...patientAppointments.map((a: any) => {
+          if (a.status === 'scheduled') {
+            return {
+              id: `appt-${a._id}`,
+              timestamp: a.scheduledAt,
+              kind: 'appointment',
+              icon: CalendarClock,
+              color: 'purple' as const,
+              title: `Upcoming${a.serviceContext ? `: ${a.serviceContext}` : ''} with ${therapistName(a.therapistId)}`,
+              subtitle: new Date(a.scheduledAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }),
+              actions: [
+                { label: 'Complete', onClick: () => completeAppointment({ appointmentId: a._id }) },
+                { label: 'Cancel', onClick: () => cancelAppointment({ appointmentId: a._id }), variant: 'ghost' as const },
+              ],
+            }
+          }
+          if (a.status === 'cancelled' || a.status === 'no-show') {
+            return {
+              id: `appt-${a._id}`,
+              timestamp: a.scheduledAt,
+              kind: 'appointment',
+              icon: XCircle,
+              color: 'muted' as const,
+              title: a.status === 'cancelled' ? 'Appointment cancelled' : 'Did not show up',
+              subtitle: new Date(a.scheduledAt).toLocaleDateString(),
+            }
+          }
+          // completed — shown as a visit below via completedAt, skip here
+          return null
+        }),
+        ...patientVisits
+          .filter((v) => !linkedVisitIds.has(v._id))
+          .map((v) => ({
+            id: `visit-${v._id}`,
+            timestamp: v.completedAt ?? v.createdAt,
+            kind: 'visit',
+            icon: Calendar,
+            color: 'blue' as const,
+            title: `${v.completedAt ? 'Visit' : 'Visit in progress'}${v.serviceContext ? `: ${v.serviceContext}` : ''} with ${therapistName(v.therapistId)}`,
+            subtitle: new Date(v.completedAt ?? v.createdAt).toLocaleDateString(),
+            actions: !v.completedAt ? [{ label: 'Mark Complete', onClick: () => completeVisit({ visitId: v._id }) }] : undefined,
+          })),
+        ...patientAppointments
+          .filter((a: any) => a.status === 'completed' && a.visitId)
+          .map((a: any) => ({
+            id: `appt-visit-${a._id}`,
+            timestamp: a.completedAt ?? a.scheduledAt,
+            kind: 'visit',
+            icon: Calendar,
+            color: 'blue' as const,
+            title: `Visit${a.serviceContext ? `: ${a.serviceContext}` : ''} with ${therapistName(a.therapistId)}`,
+            subtitle: new Date(a.completedAt ?? a.scheduledAt).toLocaleDateString(),
+          })),
+        ...feedbackResponses
+          .filter((f) => f.patientId === selected._id)
+          .map((f) => ({
+            id: `feedback-${f._id}`,
+            timestamp: f.submittedAt,
+            kind: 'feedback',
+            icon: MessageSquare,
+            color: 'green' as const,
+            title: `${f.rating}★ feedback submitted`,
+            subtitle: f.comments || undefined,
+          })),
+        ...reviewRequests
+          .filter((r) => r.patientId === selected._id && (r.clickedAt || r.completedAt))
+          .map((r) => ({
+            id: `review-${r._id}`,
+            timestamp: r.completedAt ?? r.clickedAt ?? r.createdAt,
+            kind: 'review',
+            icon: Star,
+            color: 'amber' as const,
+            title: r.completedAt ? 'Google review submitted' : 'Clicked Google review link',
+            subtitle: new Date(r.completedAt ?? r.clickedAt ?? r.createdAt).toLocaleDateString(),
+          })),
+      ]
+        .filter((e): e is TimelineEntry => e !== null)
+        .sort((a, b) => b.timestamp - a.timestamp)
+    : []
 
   const handleAddPatient = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -110,14 +213,6 @@ function PatientsPage() {
     }
   }
 
-  const handleCompleteVisit = async (visitId: string) => {
-    try {
-      await completeVisit({ visitId: visitId as any })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to complete visit')
-    }
-  }
-
   const handleScheduleAppointment = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selected || !apptDateTime || !apptTherapistId) {
@@ -145,29 +240,13 @@ function PatientsPage() {
     }
   }
 
-  const handleCompleteAppointment = async (appointmentId: string) => {
-    try {
-      await completeAppointment({ appointmentId: appointmentId as any })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to complete appointment')
-    }
-  }
-
-  const handleCancelAppointment = async (appointmentId: string) => {
-    try {
-      await cancelAppointment({ appointmentId: appointmentId as any })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to cancel appointment')
-    }
-  }
-
   return (
     <StaffLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Patients</h1>
-            <p className="text-muted-foreground">Manage patients and log their visits</p>
+            <p className="text-muted-foreground">Visit → feedback → resolution history at a glance.</p>
           </div>
           <Button onClick={() => setShowAddPatient(true)}>
             <Plus className="mr-2 h-4 w-4" />
@@ -214,12 +293,15 @@ function PatientsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-xl">{selected.name}</CardTitle>
-                    <CardDescription>Patient profile, appointments, and visits</CardDescription>
+                    <CardDescription>
+                      {selected.phone}
+                      {selected.email && <> · {selected.email}</>}
+                    </CardDescription>
                   </div>
                   <div className="flex gap-2">
                     <Button onClick={() => setShowScheduleAppointment(true)} size="sm" variant="outline">
                       <CalendarClock className="mr-2 h-4 w-4" />
-                      Schedule Appointment
+                      Schedule
                     </Button>
                     <Button onClick={() => setShowAddVisit(true)} size="sm">
                       <Plus className="mr-2 h-4 w-4" />
@@ -228,119 +310,43 @@ function PatientsPage() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Phone</p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-primary" />
-                      <p className="text-sm font-medium">{selected.phone}</p>
-                    </div>
-                  </div>
-                  {selected.email && (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Email</p>
-                      <div className="mt-1 flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <p className="text-sm">{selected.email}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <h3 className="mb-4 font-semibold">Appointments</h3>
-                  {patientAppointments.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No appointments scheduled yet.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {patientAppointments.map((appt) => {
-                        const therapist = staffList.find((s) => s._id === appt.therapistId)
-                        return (
-                          <div key={appt._id} className="flex items-center justify-between rounded-xl border border-border p-3.5">
-                            <div className="space-y-1">
-                              <p className="text-sm font-semibold">
-                                {new Date(appt.scheduledAt).toLocaleString([], {
-                                  weekday: 'short',
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: 'numeric',
-                                  minute: '2-digit',
-                                })}
-                              </p>
-                              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                {appt.serviceContext && <>{appt.serviceContext} · </>}
-                                {therapist ? therapist.name : 'Unassigned'}
-                              </p>
-                              <span
-                                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClass[appt.status]}`}
-                              >
-                                {appt.status === 'scheduled' && <Clock className="h-3 w-3" />}
-                                {appt.status === 'completed' && <CheckCircle2 className="h-3 w-3" />}
-                                {appt.status === 'cancelled' && <XCircle className="h-3 w-3" />}
-                                {appt.status === 'no-show' && <XCircle className="h-3 w-3" />}
-                                {appt.status === 'no-show' ? 'No-show' : appt.status[0].toUpperCase() + appt.status.slice(1)}
-                              </span>
-                            </div>
-                            {appt.status === 'scheduled' && (
-                              <div className="flex gap-2">
-                                <Button onClick={() => handleCompleteAppointment(appt._id)} size="sm" variant="outline">
-                                  Complete
-                                </Button>
+              <CardContent>
+                {timeline.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No history yet. Schedule an appointment or log a visit to get started.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {timeline.map((entry) => {
+                      const Icon = entry.icon
+                      return (
+                        <div key={entry.id} className="flex gap-3 border-b border-border py-3 last:border-0">
+                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${timelineIconClass[entry.color]}`}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{entry.kind}</p>
+                            <p className="text-sm font-medium">{entry.title}</p>
+                            {entry.subtitle && <p className="text-xs text-muted-foreground">{entry.subtitle}</p>}
+                          </div>
+                          {entry.actions && (
+                            <div className="flex shrink-0 gap-2">
+                              {entry.actions.map((action) => (
                                 <Button
-                                  onClick={() => handleCancelAppointment(appt._id)}
+                                  key={action.label}
                                   size="sm"
-                                  variant="ghost"
-                                  className="text-destructive hover:text-destructive"
+                                  variant={action.variant ?? 'outline'}
+                                  onClick={action.onClick}
+                                  className={action.variant === 'ghost' ? 'text-destructive hover:text-destructive' : ''}
                                 >
-                                  Cancel
+                                  {action.label}
                                 </Button>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <h3 className="mb-4 font-semibold">Visits</h3>
-                  {patientVisits.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No visits logged yet. Log one to start collecting feedback.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {patientVisits.map((visit) => (
-                        <div key={visit._id} className="flex items-center justify-between rounded-xl border border-border p-3.5">
-                          <div className="space-y-1">
-                            <p className="text-sm font-semibold">{new Date(visit.createdAt).toLocaleDateString()}</p>
-                            {visit.serviceContext && (
-                              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                <Stethoscope className="h-3 w-3" />
-                                {visit.serviceContext}
-                              </p>
-                            )}
-                            <span
-                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-                                visit.completedAt
-                                  ? 'bg-primary/10 text-primary'
-                                  : 'bg-secondary/15 text-secondary-foreground'
-                              }`}
-                            >
-                              {visit.completedAt ? <CheckCircle2 className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
-                              {visit.completedAt ? 'Completed' : 'In progress'}
-                            </span>
-                          </div>
-                          {!visit.completedAt && (
-                            <Button onClick={() => handleCompleteVisit(visit._id)} size="sm" variant="outline">
-                              Mark Complete
-                            </Button>
+                              ))}
+                            </div>
                           )}
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                      )
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -349,7 +355,7 @@ function PatientsPage() {
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
                   <Stethoscope className="h-6 w-6 text-muted-foreground" />
                 </div>
-                <p className="text-sm text-muted-foreground">Select a patient to view their profile and visits.</p>
+                <p className="text-sm text-muted-foreground">Select a patient to view their timeline.</p>
               </CardContent>
             </Card>
           )}

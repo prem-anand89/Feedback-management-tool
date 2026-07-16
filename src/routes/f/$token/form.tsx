@@ -100,7 +100,7 @@ function PatientFeedbackFormPage() {
               aria-label={`${star} star${star > 1 ? 's' : ''}`}
               className="transition-transform hover:scale-110 disabled:opacity-60"
             >
-              <Star className={`h-11 w-11 ${star <= rating ? 'fill-primary text-primary' : 'text-muted'}`} />
+              <Star className={`h-11 w-11 ${star <= rating ? 'fill-chipAmber-foreground text-chipAmber-foreground' : 'text-muted'}`} />
             </button>
           ))}
         </div>

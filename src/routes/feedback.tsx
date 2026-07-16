@@ -48,7 +48,7 @@ function FeedbackPage() {
                         </div>
                         <div className="flex items-center gap-1">
                           {Array.from({ length: 5 }).map((_, i) => (
-                            <Star key={i} className={`h-4 w-4 ${i < feedback.rating ? 'fill-primary text-primary' : 'text-muted'}`} />
+                            <Star key={i} className={`h-4 w-4 ${i < feedback.rating ? 'fill-chipAmber-foreground text-chipAmber-foreground' : 'text-muted'}`} />
                           ))}
                         </div>
                       </div>
@@ -74,7 +74,7 @@ function FeedbackPage() {
                   <p className="text-sm font-medium text-muted-foreground">Overall Rating</p>
                   <div className="flex items-center gap-1 mt-1">
                     {Array.from({ length: 5 }).map((_, i) => (
-                      <Star key={i} className={`h-4 w-4 ${i < selected.rating ? 'fill-primary text-primary' : 'text-muted'}`} />
+                      <Star key={i} className={`h-4 w-4 ${i < selected.rating ? 'fill-chipAmber-foreground text-chipAmber-foreground' : 'text-muted'}`} />
                     ))}
                   </div>
                 </div>

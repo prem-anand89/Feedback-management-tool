@@ -1,23 +1,26 @@
 import type { Config } from 'tailwindcss'
 
-// "Modern clinical" theme — calm teal primary, cool blue secondary, cool-neutral
-// surfaces. Clean and trust-building rather than playful; no green/amber warmth.
+// "Lovable navy" theme — near-black navy as the sole brand color (sidebar,
+// active states, charts), white/slate neutrals for chrome, and a small set
+// of soft pastel "chip" colors used only for icon badges and status pills.
+// Color carries meaning, not brand — matches the reference design pulled
+// from the Lovable dashboard/complaints/patients/analytics screens.
 const config: Config = {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
-        border: '#E2E8F0',
-        input: '#E2E8F0',
-        ring: '#0D9488',
-        background: '#F7F9FB',
-        foreground: '#1E293B',
+        border: '#E5E7EB',
+        input: '#E5E7EB',
+        ring: '#0F172A',
+        background: '#F8FAFC',
+        foreground: '#0F172A',
         primary: {
-          DEFAULT: '#0D9488',
+          DEFAULT: '#0F172A',
           foreground: '#FFFFFF',
         },
         secondary: {
-          DEFAULT: '#2563EB',
+          DEFAULT: '#3B82F6',
           foreground: '#FFFFFF',
         },
         destructive: {
@@ -25,25 +28,32 @@ const config: Config = {
           foreground: '#FFFFFF',
         },
         muted: {
-          DEFAULT: '#EEF2F6',
+          DEFAULT: '#F1F5F9',
           foreground: '#64748B',
         },
         accent: {
-          DEFAULT: '#E6F4F3',
+          DEFAULT: '#F1F5F9',
           foreground: '#334155',
         },
         card: {
           DEFAULT: '#FFFFFF',
-          foreground: '#1E293B',
+          foreground: '#0F172A',
         },
         popover: {
           DEFAULT: '#FFFFFF',
-          foreground: '#1E293B',
+          foreground: '#0F172A',
         },
         success: {
-          DEFAULT: '#0D9488',
+          DEFAULT: '#0F172A',
           foreground: '#FFFFFF',
         },
+        // Pastel "chip" colors — icon badges and status pills only, never
+        // primary UI chrome or buttons.
+        chipBlue: { DEFAULT: '#DBEAFE', foreground: '#2563EB' },
+        chipAmber: { DEFAULT: '#FEF3C7', foreground: '#D97706' },
+        chipGreen: { DEFAULT: '#D1FAE5', foreground: '#059669' },
+        chipPurple: { DEFAULT: '#EDE9FE', foreground: '#7C3AED' },
+        chipPink: { DEFAULT: '#FCE7F3', foreground: '#DB2777' },
       },
       borderRadius: {
         sm: '0.375rem',
@@ -53,10 +63,10 @@ const config: Config = {
         '2xl': '1.25rem',
       },
       boxShadow: {
-        sm: '0 1px 2px 0 rgba(30, 41, 59, 0.05)',
-        DEFAULT: '0 2px 8px -2px rgba(30, 41, 59, 0.07)',
-        md: '0 6px 20px -4px rgba(30, 41, 59, 0.09)',
-        lg: '0 12px 32px -8px rgba(30, 41, 59, 0.12)',
+        sm: '0 1px 2px 0 rgba(15, 23, 42, 0.05)',
+        DEFAULT: '0 2px 8px -2px rgba(15, 23, 42, 0.07)',
+        md: '0 6px 20px -4px rgba(15, 23, 42, 0.09)',
+        lg: '0 12px 32px -8px rgba(15, 23, 42, 0.12)',
       },
       fontFamily: {
         sans: [

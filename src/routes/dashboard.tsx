@@ -2,10 +2,57 @@ import { createRoute } from '@tanstack/react-router'
 import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { MessageSquare, AlertCircle, CheckCircle, Star, Percent, TrendingUp } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { MessageSquare, Clock, Star, Globe, AlertCircle, CheckCircle } from 'lucide-react'
 import { useQuery, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+
+function relativeTime(ts: number) {
+  const diffMs = Date.now() - ts
+  const minutes = Math.round(diffMs / 60000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.round(hours / 24)
+  if (days === 1) return 'yesterday'
+  return `${days}d ago`
+}
+
+const metricIconClass: Record<string, string> = {
+  blue: 'bg-chipBlue text-chipBlue-foreground',
+  amber: 'bg-chipAmber text-chipAmber-foreground',
+  green: 'bg-chipGreen text-chipGreen-foreground',
+  purple: 'bg-chipPurple text-chipPurple-foreground',
+  pink: 'bg-chipPink text-chipPink-foreground',
+}
+
+function MetricCard({
+  icon: Icon,
+  color,
+  value,
+  label,
+  sub,
+}: {
+  icon: any
+  color: keyof typeof metricIconClass
+  value: string | number
+  label: string
+  sub?: string
+}) {
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-xl ${metricIconClass[color]}`}>
+          <Icon className="h-4 w-4" />
+        </div>
+        <div className="text-2xl font-bold">{value}</div>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
+      </CardContent>
+    </Card>
+  )
+}
 
 function DashboardPage() {
   const { isAuthenticated } = useConvexAuth()
@@ -23,50 +70,45 @@ function DashboardPage() {
   }).length
 
   const pendingFeedback = feedbackRequests.filter((f) => f.status === 'pending').length
-  const respondedFeedback = feedbackRequests.filter((f) => f.status === 'responded').length
-  const responseRate = feedbackRequests.length > 0
-    ? Math.round((respondedFeedback / feedbackRequests.length) * 100)
-    : 0
 
   const avgRating = feedbackResponses.length > 0
     ? (feedbackResponses.reduce((sum, f) => sum + f.rating, 0) / feedbackResponses.length).toFixed(1)
     : '0'
 
-  const highRatings = feedbackResponses.filter((f) => f.rating >= 4).length
-  const lowRatings = feedbackResponses.filter((f) => f.rating <= 2).length
-
   const complaintCount = complaints.filter((c) => c.status === 'pending' || c.status === 'in-progress').length
   const resolved = complaints.filter((c) => c.status === 'resolved').length
-  const totalComplaints = complaints.length
 
   const recentActivity = [
     ...feedbackResponses.map((f) => ({
       id: f._id,
       message: `Feedback received: ${f.rating}★ rating`,
-      timestamp: new Date(f.submittedAt).getTime(),
-      type: 'feedback' as const,
+      timestamp: f.submittedAt,
+      icon: MessageSquare,
+      color: 'blue' as const,
     })),
     ...complaints.map((c) => ({
       id: c._id,
       message: `Complaint: ${c.priority} priority`,
       timestamp: c.createdAt,
-      type: 'complaint' as const,
+      icon: AlertCircle,
+      color: 'pink' as const,
     })),
   ]
     .sort((a, b) => b.timestamp - a.timestamp)
-    .slice(0, 5)
-    .map((a) => ({
-      ...a,
-      timestamp: new Date(a.timestamp).toLocaleString(),
-    }))
+    .slice(0, 6)
 
-  const monthlyData = [
-    {
-      month: 'Last 7 days',
-      requests: feedbackRequests.filter((f) => Date.now() - f.sentAt < 7 * 24 * 60 * 60 * 1000).length,
-      responses: feedbackResponses.filter((f) => Date.now() - f.submittedAt < 7 * 24 * 60 * 60 * 1000).length,
-    },
-  ]
+  // Trailing 6 months of feedback volume, bucketed by month.
+  const monthlyData = Array.from({ length: 6 }).map((_, i) => {
+    const d = new Date()
+    d.setDate(1)
+    d.setMonth(d.getMonth() - (5 - i))
+    const label = d.toLocaleDateString([], { month: 'short' })
+    const count = feedbackResponses.filter((f) => {
+      const submitted = new Date(f.submittedAt)
+      return submitted.getFullYear() === d.getFullYear() && submitted.getMonth() === d.getMonth()
+    }).length
+    return { month: label, count }
+  })
 
   if (isAuthenticated && staffUser === null) {
     return (
@@ -86,108 +128,59 @@ function DashboardPage() {
       <div className="space-y-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Here's your clinic's feedback overview.</p>
+          <p className="text-muted-foreground">Overview of feedback, complaints, and reputation this week.</p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Today's Feedback</CardTitle>
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{todayFeedback}</div>
-              <p className="text-xs text-muted-foreground">feedback requests sent</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Response Rate</CardTitle>
-              <Percent className="h-4 w-4 text-blue-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{responseRate}%</div>
-              <p className="text-xs text-muted-foreground">{respondedFeedback} of {feedbackRequests.length} responses</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Average Rating</CardTitle>
-              <Star className="h-4 w-4 text-yellow-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{avgRating}</div>
-              <p className="text-xs text-muted-foreground">out of 5 stars ({feedbackResponses.length} total)</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Google Reviews</CardTitle>
-              <TrendingUp className="h-4 w-4 text-green-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{reviewStats?.clickRate ?? 0}%</div>
-              <p className="text-xs text-muted-foreground">{reviewStats?.clicked ?? 0} of {reviewStats?.total ?? 0} clicked</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Open Complaints</CardTitle>
-              <AlertCircle className="h-4 w-4 text-red-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{complaintCount}</div>
-              <p className="text-xs text-muted-foreground">{resolved} resolved of {totalComplaints} total</p>
-            </CardContent>
-          </Card>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <MetricCard icon={MessageSquare} color="blue" value={todayFeedback} label="Today's Feedback" />
+          <MetricCard icon={Clock} color="amber" value={pendingFeedback} label="Pending Feedback" />
+          <MetricCard icon={Star} color="green" value={`${avgRating} / 5`} label="Average Rating" />
+          <MetricCard icon={Globe} color="purple" value={reviewStats?.clicked ?? 0} label="Google Reviews (mo.)" />
+          <MetricCard icon={AlertCircle} color="pink" value={complaintCount} label="Open Complaints" />
+          <MetricCard icon={CheckCircle} color="green" value={resolved} label="Resolved Issues" />
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Latest feedback and interactions</CardDescription>
+              <CardTitle>Monthly feedback volume</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-center gap-3 border-b pb-3 last:border-0">
-                    <div className="h-2 w-2 rounded-full bg-primary" />
-                    <div className="flex-1 text-sm">
-                      <p className="font-medium">{activity.message}</p>
-                      <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
+                  <Tooltip cursor={{ fill: '#F1F5F9' }} />
+                  <Bar dataKey="count" fill="#0F172A" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Monthly Trend</CardTitle>
-              <CardDescription>Feedback requests and responses</CardDescription>
+              <CardTitle>Recent activity</CardTitle>
             </CardHeader>
             <CardContent>
-              {monthlyData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={monthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="requests" fill="#0ea5e9" />
-                    <Bar dataKey="responses" fill="#06b6d4" />
-                  </BarChart>
-                </ResponsiveContainer>
+              {recentActivity.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No activity yet.</p>
               ) : (
-                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                  No data yet
+                <div className="space-y-1">
+                  {recentActivity.map((activity) => {
+                    const Icon = activity.icon
+                    return (
+                      <div key={activity.id} className="flex items-center gap-3 border-b border-border py-3 last:border-0">
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${metricIconClass[activity.color]}`}>
+                          <Icon className="h-3.5 w-3.5" />
+                        </div>
+                        <p className="flex-1 text-sm font-medium">{activity.message}</p>
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                          {relativeTime(activity.timestamp)}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </CardContent>
