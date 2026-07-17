@@ -1,8 +1,82 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+  CareConnect "Sage" palette — deep plum + sage green over warm cream.
+  Tokens are HSL channel triplets so Tailwind can apply /opacity modifiers
+  and so the whole theme flips under prefers-color-scheme without touching
+  component classes.
+*/
+:root {
+  --background: 46 26% 94%;
+  --foreground: 258 9% 21%;
+  --card: 60 22% 98%;
+  --card-foreground: 258 9% 21%;
+  --popover: 60 22% 98%;
+  --popover-foreground: 258 9% 21%;
+  --primary: 288 26% 31%;
+  --primary-foreground: 300 33% 96%;
+  --secondary: 140 21% 45%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 45 20% 91%;
+  --muted-foreground: 280 5% 44%;
+  --accent: 272 46% 91%;
+  --accent-foreground: 288 26% 31%;
+  --destructive: 349 43% 48%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 45 16% 86%;
+  --input: 45 16% 86%;
+  --ring: 288 26% 31%;
+
+  --chip-blue: 200 40% 88%;
+  --chip-blue-fg: 200 35% 34%;
+  --chip-amber: 44 65% 87%;
+  --chip-amber-fg: 40 72% 34%;
+  --chip-green: 135 26% 88%;
+  --chip-green-fg: 140 24% 36%;
+  --chip-purple: 272 46% 91%;
+  --chip-purple-fg: 278 26% 40%;
+  --chip-pink: 348 55% 92%;
+  --chip-pink-fg: 345 42% 45%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: 264 13% 12%;
+    --foreground: 46 20% 92%;
+    --card: 264 12% 16%;
+    --card-foreground: 46 20% 92%;
+    --popover: 264 12% 16%;
+    --popover-foreground: 46 20% 92%;
+    --primary: 285 24% 62%;
+    --primary-foreground: 288 30% 12%;
+    --secondary: 140 26% 55%;
+    --secondary-foreground: 140 35% 10%;
+    --muted: 264 8% 22%;
+    --muted-foreground: 46 10% 68%;
+    --accent: 285 16% 27%;
+    --accent-foreground: 46 20% 92%;
+    --destructive: 349 52% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 264 8% 24%;
+    --input: 264 8% 24%;
+    --ring: 285 24% 62%;
+
+    --chip-blue: 200 22% 26%;
+    --chip-blue-fg: 200 42% 76%;
+    --chip-amber: 40 28% 26%;
+    --chip-amber-fg: 42 62% 72%;
+    --chip-green: 140 20% 24%;
+    --chip-green-fg: 140 34% 74%;
+    --chip-purple: 278 22% 27%;
+    --chip-purple-fg: 275 44% 82%;
+    --chip-pink: 349 24% 29%;
+    --chip-pink-fg: 349 55% 80%;
+  }
+}
 
 * {
   @apply border-border;
@@ -18,7 +92,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Cool-neutral scrollbars to match the clinical theme */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -27,12 +100,12 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: hsl(var(--border));
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: hsl(var(--muted-foreground) / 0.5);
   background-clip: content-box;
 }

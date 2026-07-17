@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
-import { Stethoscope } from 'lucide-react'
+import { Logo } from '@/components/logo'
 
 function SetupPage() {
   const { isAuthenticated } = useConvexAuth()
@@ -52,14 +52,8 @@ function SetupPage() {
     <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <div className="mb-4 flex items-center gap-2">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Stethoscope className="h-6 w-6" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">TheraNet</h1>
-              <p className="text-xs text-muted-foreground">Feedback Management</p>
-            </div>
+          <div className="mb-4">
+            <Logo markClassName="h-11 w-11" className="[&_span]:text-2xl" />
           </div>
           <CardTitle>Set Up Your Clinic</CardTitle>
           <CardDescription>Create your clinic to get started managing patient feedback</CardDescription>

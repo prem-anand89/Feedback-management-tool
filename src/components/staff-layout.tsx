@@ -10,11 +10,11 @@ import {
   BarChart3,
   Settings as SettingsIcon,
   LogOut,
-  Stethoscope,
   Menu,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { Logo } from '@/components/logo'
 import { cn } from '@/lib/utils'
 
 const nav = [
@@ -77,14 +77,8 @@ export function StaffLayout({ children }: { children: ReactNode }) {
   )
 
   const Brand = () => (
-    <div className="flex items-center gap-2 px-5 py-5">
-      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-        <Stethoscope className="h-5 w-5" />
-      </div>
-      <div className="leading-tight">
-        <div className="text-sm font-semibold">TheraNet</div>
-        <div className="text-xs text-muted-foreground">Feedback</div>
-      </div>
+    <div className="px-5 py-5">
+      <Logo markClassName="h-9 w-9" />
     </div>
   )
 
@@ -95,7 +89,7 @@ export function StaffLayout({ children }: { children: ReactNode }) {
         <div className="flex-1 overflow-y-auto py-2">
           <NavList />
         </div>
-        <div className="border-t p-3 text-xs text-muted-foreground">v0.2 · Clerk + Convex</div>
+        <div className="border-t p-3 text-xs text-muted-foreground">CareConnect · v0.3</div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -112,7 +106,7 @@ export function StaffLayout({ children }: { children: ReactNode }) {
                 <NavList />
               </SheetContent>
             </Sheet>
-            <span className="text-sm font-semibold">TheraNet</span>
+            <Logo markClassName="h-7 w-7" className="[&_span]:text-base" />
           </div>
 
           <div className="ml-auto flex items-center gap-3">

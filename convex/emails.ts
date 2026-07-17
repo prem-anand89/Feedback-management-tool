@@ -108,7 +108,7 @@ export const sendWelcomeEmail = internalAction({
   handler: async (ctx, { staffEmail, staffName, clinicName }) => {
     const subject = `Welcome to ${clinicName}!`
     const html = `
-      <h2>Welcome to Feedback Management!</h2>
+      <h2>Welcome to CareConnect!</h2>
       <p>Hi ${staffName},</p>
       <p>Your clinic <strong>${clinicName}</strong> is now set up and ready to collect patient feedback.</p>
       <h3>Next Steps:</h3>
