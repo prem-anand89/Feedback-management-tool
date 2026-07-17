@@ -104,6 +104,32 @@ export async function insertCompletedVisit(
   return visitId
 }
 
+// Inserts an already-completed visit with an explicit historical
+// completedAt, deliberately skipping the scheduleFollowUp scheduler call —
+// unlike insertCompletedVisit, this must never fire a live WhatsApp feedback
+// request for a months/years-old backfilled visit. Used by patientImport.ts.
+export async function insertHistoricalVisit(
+  ctx: MutationCtx,
+  args: {
+    clinicId: Id<'clinics'>
+    patientId: Id<'patients'>
+    therapistId: Id<'staffUsers'>
+    completedAt: number
+    serviceContext?: string
+    notes?: string
+  },
+) {
+  return await ctx.db.insert('visits', {
+    clinicId: args.clinicId,
+    patientId: args.patientId,
+    therapistId: args.therapistId,
+    ...(args.serviceContext ? { serviceContext: args.serviceContext } : {}),
+    notes: args.notes,
+    completedAt: args.completedAt,
+    createdAt: Date.now(),
+  })
+}
+
 // Staff-triggered manual completion (e.g. a "mark done" button in the app).
 export const completeVisit = mutation({
   args: { visitId: v.id('visits') },

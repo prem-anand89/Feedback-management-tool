@@ -44,8 +44,7 @@ export async function findOrCreatePatient(
 ): Promise<Id<'patients'>> {
   const existing = await ctx.db
     .query('patients')
-    .withIndex('by_clinic', (q) => q.eq('clinicId', args.clinicId))
-    .filter((q) => q.eq(q.field('phone'), args.phone))
+    .withIndex('by_clinic_phone', (q) => q.eq('clinicId', args.clinicId).eq('phone', args.phone))
     .first()
   if (existing) return existing._id
 

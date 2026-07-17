@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { createRoute } from '@tanstack/react-router'
+import { createRoute, Link } from '@tanstack/react-router'
 import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Phone, Plus, Stethoscope, Calendar, CalendarClock, MessageSquare, Star, XCircle, Archive, ArchiveRestore } from 'lucide-react'
+import { Phone, Plus, Stethoscope, Calendar, CalendarClock, MessageSquare, Star, XCircle, Archive, ArchiveRestore, Upload } from 'lucide-react'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { IconBadge } from '@/components/ui/icon-badge'
@@ -272,10 +272,20 @@ function PatientsPage() {
             <h1 className="text-2xl font-semibold tracking-tight">Patients</h1>
             <p className="text-muted-foreground">Visit → feedback → resolution history at a glance.</p>
           </div>
-          <Button onClick={() => setShowAddPatient(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Patient
-          </Button>
+          <div className="flex gap-2">
+            {staffUser?.role === 'owner' && (
+              <Button asChild variant="outline">
+                <Link to="/patients/import">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import CSV
+                </Link>
+              </Button>
+            )}
+            <Button onClick={() => setShowAddPatient(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Patient
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">

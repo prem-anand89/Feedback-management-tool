@@ -57,7 +57,8 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index('by_clinic', ['clinicId'])
-    .index('by_email', ['clinicId', 'email']),
+    .index('by_email', ['clinicId', 'email'])
+    .index('by_clinic_phone', ['clinicId', 'phone']),
 
   visits: defineTable({
     clinicId: v.id('clinics'),
