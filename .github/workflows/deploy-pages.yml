@@ -34,7 +34,7 @@ jobs:
           # Clerk publishable key and the Convex deployment URL are meant to
           # be embedded in client-side bundles (they aren't secrets), so
           # they're set inline here rather than via repo secrets.
-          VITE_CONVEX_URL: https://descriptive-quail-833.eu-west-1.convex.cloud/
+          VITE_CONVEX_URL: https://descriptive-quail-833.eu-west-1.convex.cloud
           VITE_CLERK_PUBLISHABLE_KEY: pk_test_Z3Jvd2luZy1jb3ctNDIuY2xlcmsuYWNjb3VudHMuZGV2JA
       # GitHub Pages has no server-side rewrites, so client-side routes
       # (TanStack Router) need the SPA fallback: any unmatched path serves
