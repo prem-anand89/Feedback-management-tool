@@ -8,7 +8,7 @@ import { api } from '../../convex/_generated/api'
 import { Logo } from '@/components/logo'
 
 function SetupPage() {
-  const { isAuthenticated } = useConvexAuth()
+  const { isLoading: authLoading, isAuthenticated } = useConvexAuth()
   const navigate = useNavigate()
   const createClinic = useMutation(api.clinics.createClinic)
   const [clinicName, setClinicName] = useState('')
@@ -31,6 +31,18 @@ function SetupPage() {
       setError(err instanceof Error ? err.message : 'Failed to create clinic')
       setIsLoading(false)
     }
+  }
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/50 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Loading...</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+    )
   }
 
   if (!isAuthenticated) {
