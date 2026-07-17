@@ -130,7 +130,7 @@ function AppointmentsPage() {
   const startConfirmRequest = (request: any) => {
     setConfirmingRequestId(request._id)
     setConfirmDateTime(`${request.preferredDate}T${slotTo24h(request.preferredTime)}`)
-    setConfirmTherapistId('')
+    setConfirmTherapistId(request.preferredTherapistId ?? '')
   }
 
   const commitConfirmRequest = async (requestId: string) => {
@@ -205,6 +205,7 @@ function AppointmentsPage() {
                       <p className="text-xs text-muted-foreground">
                         Requested {req.preferredDate} at {req.preferredTime}
                         {req.reason && <> · {req.reason}</>}
+                        {req.preferredTherapistId && <> · Prefers {therapistName(req.preferredTherapistId)}</>}
                       </p>
                       {req.notes && <p className="text-xs text-muted-foreground">"{req.notes}"</p>}
                     </div>

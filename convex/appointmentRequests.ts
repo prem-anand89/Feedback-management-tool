@@ -12,12 +12,19 @@ const DEFAULT_CLOSED_DAYS = [0] // Sunday
 const DEFAULT_BOOKING_WINDOW_DAYS = 90
 
 // Public, unauthenticated: powers the embeddable booking form. Only exposes
-// what a patient needs to fill out the request — never staff/internal data.
+// what a patient needs to fill out the request — never staff/internal data
+// (therapist list is name + id only, no email/userId/role).
 export const getPublicClinicBookingInfo = query({
   args: { clinicId: v.id('clinics') },
   handler: async (ctx, { clinicId }) => {
     const clinic = await ctx.db.get(clinicId)
     if (!clinic) return null
+
+    const staff = await ctx.db
+      .query('staffUsers')
+      .withIndex('by_clinic', (q) => q.eq('clinicId', clinicId))
+      .collect()
+    const therapists = staff.filter((s) => s.role === 'therapist').map((s) => ({ _id: s._id, name: s.name }))
 
     return {
       name: clinic.name,
@@ -26,6 +33,8 @@ export const getPublicClinicBookingInfo = query({
       closedDays: clinic.bookingClosedDays ?? DEFAULT_CLOSED_DAYS,
       windowDays: clinic.bookingWindowDays ?? DEFAULT_BOOKING_WINDOW_DAYS,
       whatsappNumber: clinic.whatsappNumber ?? clinic.contactPhone ?? '',
+      contactPhone: clinic.contactPhone ?? '',
+      therapists,
     }
   },
 })
@@ -41,10 +50,11 @@ export const createAppointmentRequest = mutation({
     email: v.optional(v.string()),
     preferredDate: v.string(),
     preferredTime: v.string(),
+    preferredTherapistId: v.optional(v.id('staffUsers')),
     reason: v.optional(v.string()),
     notes: v.optional(v.string()),
   },
-  handler: async (ctx, { clinicId, patientName, phone, email, preferredDate, preferredTime, reason, notes }) => {
+  handler: async (ctx, { clinicId, patientName, phone, email, preferredDate, preferredTime, preferredTherapistId, reason, notes }) => {
     const clinic = await ctx.db.get(clinicId)
     if (!clinic) throw new Error('Clinic not found')
 
@@ -56,6 +66,12 @@ export const createAppointmentRequest = mutation({
     if (trimmedPhone.replace(/\D/g, '').length < 7) {
       throw new Error('Please enter a valid phone number')
     }
+    if (preferredTherapistId) {
+      const therapist = await ctx.db.get(preferredTherapistId)
+      if (!therapist || therapist.clinicId !== clinicId) {
+        throw new Error('Selected therapist not found for this clinic')
+      }
+    }
 
     const requestId = await ctx.db.insert('appointmentRequests', {
       clinicId,
@@ -64,6 +80,7 @@ export const createAppointmentRequest = mutation({
       email: email?.trim() || undefined,
       preferredDate,
       preferredTime,
+      preferredTherapistId,
       reason: reason?.trim() || undefined,
       notes: notes?.trim() || undefined,
       status: 'pending',

@@ -187,3 +187,12 @@ export const listStaffInternal = internalQuery({
       .collect()
   },
 })
+
+// Internal-only: used by the therapist appointment-reminder email, which has
+// no caller identity.
+export const getStaffUserInternal = internalQuery({
+  args: { staffId: v.id('staffUsers') },
+  handler: async (ctx, { staffId }) => {
+    return await ctx.db.get(staffId)
+  },
+})
