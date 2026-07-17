@@ -55,13 +55,25 @@ export const listAppointments = query({
   },
   handler: async (ctx, { from, to }) => {
     const staffUser = await requireStaffUser(ctx)
-    let q = ctx.db.query('appointments').withIndex('by_clinic_scheduled', (idx) => {
-      let range = idx.eq('clinicId', staffUser.clinicId)
-      if (from !== undefined) range = range.gte('scheduledAt', from)
-      if (to !== undefined) range = range.lte('scheduledAt', to)
-      return range
-    })
-    return await q.collect()
+    // Each branch returns its own independently-typed range builder chain —
+    // Convex's fluent index range builder narrows its type on every call
+    // (.eq -> .gte -> .lte), so reassigning across a shared mutable variable
+    // doesn't type-check.
+    return await ctx.db
+      .query('appointments')
+      .withIndex('by_clinic_scheduled', (idx) => {
+        if (from !== undefined && to !== undefined) {
+          return idx.eq('clinicId', staffUser.clinicId).gte('scheduledAt', from).lte('scheduledAt', to)
+        }
+        if (from !== undefined) {
+          return idx.eq('clinicId', staffUser.clinicId).gte('scheduledAt', from)
+        }
+        if (to !== undefined) {
+          return idx.eq('clinicId', staffUser.clinicId).lte('scheduledAt', to)
+        }
+        return idx.eq('clinicId', staffUser.clinicId)
+      })
+      .collect()
   },
 })
 

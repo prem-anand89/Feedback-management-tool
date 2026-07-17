@@ -169,8 +169,10 @@ export const sendReminder = internalAction({
     const feedbackRequest = await ctx.runQuery(internal.feedback.getFeedbackRequestInternal, {
       feedbackRequestId,
     })
-    if (!feedbackRequest) {
-      return { success: false, error: 'Feedback request not found' }
+    // Already responded (or somehow already reminded) by the time this
+    // fires — nothing to nudge.
+    if (!feedbackRequest || feedbackRequest.status !== 'pending') {
+      return { success: false, error: 'Feedback already responded to or not found' }
     }
 
     const patient = await ctx.runQuery(internal.patients.getPatientInternal, { patientId })
@@ -185,6 +187,10 @@ export const sendReminder = internalAction({
     const message = `Hi ${patient.name}, just checking in! We'd still love to hear your feedback about your visit: ${feedbackLink}`
 
     const success = await sendWhatsAppMessage(patient.phone, message, accessToken, phoneNumberId)
+
+    if (success) {
+      await ctx.runMutation(internal.feedback.markReminded, { feedbackRequestId })
+    }
 
     await ctx.runMutation(internal.whatsapp.logAutomation, {
       clinicId,

@@ -1,8 +1,13 @@
 import { internalAction } from './_generated/server'
 import { v } from 'convex/values'
+import { internal } from './_generated/api'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const DASHBOARD_URL = process.env.VITE_DASHBOARD_URL || 'http://localhost:5173'
+// `onboarding@resend.dev` is Resend's built-in sandbox sender that works
+// without domain verification — use it as a safe default. Production
+// deployments should set RESEND_FROM_EMAIL to a verified custom domain.
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'CareConnect <onboarding@resend.dev>'
 
 async function sendEmail(
   to: string,
@@ -22,7 +27,7 @@ async function sendEmail(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'noreply@feedback-management.app',
+        from: FROM_EMAIL,
         to,
         subject,
         html,
@@ -72,14 +77,25 @@ export const notifyComplaintCreated = internalAction({
   },
 })
 
+// Resolves clinic/staff itself, mirroring notifyComplaintCreated's caller
+// (createComplaintFromFeedback) — so this can be scheduled directly from the
+// submitFeedback mutation, which has no query/mutation access of its own to
+// look staff up beforehand.
 export const notifyFeedbackResponse = internalAction({
   args: {
-    staffEmail: v.string(),
-    staffName: v.string(),
-    clinicName: v.string(),
+    clinicId: v.id('clinics'),
     rating: v.number(),
   },
-  handler: async (ctx, { staffEmail, staffName, clinicName, rating }) => {
+  handler: async (ctx, { clinicId, rating }) => {
+    const clinic = await ctx.runQuery(internal.clinics.getClinic, { clinicId })
+    const staffUsers = await ctx.runQuery(internal.clinics.listStaffInternal, { clinicId })
+    const recipient = staffUsers.find((s) => s.role === 'owner') || staffUsers[0]
+    if (!clinic || !recipient) return { success: false }
+
+    const staffEmail = recipient.email
+    const staffName = recipient.name
+    const clinicName = clinic.name
+
     const ratingText = rating >= 4 ? '⭐ Positive' : rating >= 3 ? '👌 Neutral' : '⚠️ Low'
     const subject = `New Feedback Received: ${ratingText}`
     const html = `

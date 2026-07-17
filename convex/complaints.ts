@@ -7,15 +7,13 @@ export const listComplaints = query({
   args: { status: v.optional(v.string()) },
   handler: async (ctx, { status }) => {
     const staffUser = await requireStaffUser(ctx)
-    const query = ctx.db.query('complaints').withIndex('by_clinic', (q) => q.eq('clinicId', staffUser.clinicId))
+    const complaintsQuery = ctx.db.query('complaints').withIndex('by_clinic', (q) => q.eq('clinicId', staffUser.clinicId))
 
     if (status) {
-      // Note: Convex doesn't have a way to filter further after index, so we collect and filter in memory for MVP
-      const allComplaints = await query.collect()
-      return allComplaints.filter((c) => c.status === status)
+      return await complaintsQuery.filter((q) => q.eq(q.field('status'), status)).collect()
     }
 
-    return await query.collect()
+    return await complaintsQuery.collect()
   },
 })
 
@@ -73,12 +71,15 @@ export const createComplaint = internalMutation({
     // triggered this complaint — they're the natural first point of
     // follow-up. Staff can reassign from the board.
     const feedbackResponse = await ctx.db.get(feedbackResponseId)
+    // This path only ever fires for rating <= 2 (see feedback.submitFeedback),
+    // so the worst score (1) gets flagged high priority, the rest medium.
+    const priority = feedbackResponse && feedbackResponse.rating <= 1 ? 'high' : 'medium'
 
     const complaintId = await ctx.db.insert('complaints', {
       clinicId,
       feedbackResponseId,
       patientId,
-      priority: 'medium',
+      priority,
       status: 'pending',
       assignedToId: feedbackResponse?.therapistId,
       notes: JSON.stringify([

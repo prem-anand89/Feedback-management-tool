@@ -33,12 +33,20 @@ function PatientFeedbackFormPage() {
     setSubmitting(true)
     setError(null)
     try {
-      await submitFeedback({
+      const result = await submitFeedback({
         feedbackRequestId: feedbackRequest._id,
         rating: value,
         comments: comment,
       })
-      navigate({ to: `/f/$token/${value >= HAPPY_THRESHOLD ? 'thank-you' : 'sorry'}`, params: { token } })
+      if (value >= HAPPY_THRESHOLD) {
+        navigate({
+          to: '/f/$token/thank-you',
+          params: { token },
+          search: result.reviewRequestId ? { reviewRequestId: result.reviewRequestId } : undefined,
+        })
+      } else {
+        navigate({ to: '/f/$token/sorry', params: { token } })
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit feedback')
       setSubmitting(false)

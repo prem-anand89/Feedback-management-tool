@@ -85,6 +85,9 @@ const getFeedbackLink = httpAction(async (ctx, request) => {
   }
 })
 
+// Marks the click, then redirects the patient's browser straight to the
+// clinic's Google review page — the reviewRequest doc already carries the
+// URL it was created with, so no extra param is needed on the link.
 const trackReviewClick = httpAction(async (ctx, request) => {
   try {
     const url = new URL(request.url)
@@ -97,13 +100,20 @@ const trackReviewClick = httpAction(async (ctx, request) => {
       })
     }
 
-    await ctx.runMutation(internal.reviews.trackReviewClick, {
+    const reviewRequest = await ctx.runMutation(internal.reviews.trackReviewClick, {
       reviewRequestId: reviewRequestId as any,
     })
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
+    if (!reviewRequest) {
+      return new Response(JSON.stringify({ error: 'Review request not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    return new Response(null, {
+      status: 302,
+      headers: { Location: reviewRequest.googleReviewUrl },
     })
   } catch (error) {
     console.error('Error in trackReviewClick:', error)

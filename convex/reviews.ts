@@ -1,5 +1,6 @@
-import { query, internalMutation } from './_generated/server'
+import { query, internalMutation, MutationCtx } from './_generated/server'
 import { v } from 'convex/values'
+import { Id } from './_generated/dataModel'
 import { requireStaffUser } from './lib/auth'
 
 export const listReviewRequests = query({
@@ -13,36 +14,37 @@ export const listReviewRequests = query({
   },
 })
 
+// Called directly (not via ctx.runMutation) from feedback.submitFeedback,
+// which is itself a mutation — mutations can't call other Convex functions,
+// only plain TS, same pattern as insertScheduledAppointment/insertCompletedVisit.
+export async function insertReviewRequest(
+  ctx: MutationCtx,
+  args: { clinicId: Id<'clinics'>; patientId: Id<'patients'>; googleReviewUrl: string },
+) {
+  return await ctx.db.insert('reviewRequests', { ...args, createdAt: Date.now() })
+}
+
 export const createReviewRequest = internalMutation({
   args: {
     clinicId: v.id('clinics'),
     patientId: v.id('patients'),
     googleReviewUrl: v.string(),
   },
-  handler: async (ctx, { clinicId, patientId, googleReviewUrl }) => {
-    const reviewRequestId = await ctx.db.insert('reviewRequests', {
-      clinicId,
-      patientId,
-      googleReviewUrl,
-      createdAt: Date.now(),
-    })
-    return reviewRequestId
-  },
+  handler: async (ctx, args) => insertReviewRequest(ctx, args),
 })
 
+// Returns the updated doc (rather than just the id) so the /api/trackReviewClick
+// HTTP action can redirect straight to its googleReviewUrl.
 export const trackReviewClick = internalMutation({
   args: {
     reviewRequestId: v.id('reviewRequests'),
   },
   handler: async (ctx, { reviewRequestId }) => {
     const reviewRequest = await ctx.db.get(reviewRequestId)
-    if (!reviewRequest) throw new Error('Review request not found')
+    if (!reviewRequest) return null
 
-    await ctx.db.patch(reviewRequestId, {
-      clickedAt: Date.now(),
-    })
-
-    return reviewRequestId
+    await ctx.db.patch(reviewRequestId, { clickedAt: Date.now() })
+    return { ...reviewRequest, clickedAt: Date.now() }
   },
 })
 
