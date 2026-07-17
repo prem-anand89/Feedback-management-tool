@@ -1,4 +1,5 @@
 import { Route as RootRoute } from './routes/__root'
+import { Route as IndexRoute } from './routes/index'
 import { Route as LoginRoute } from './routes/login'
 import { Route as SignUpRoute } from './routes/signup'
 import { Route as SetupRoute } from './routes/setup'
@@ -18,6 +19,7 @@ import { Route as FTokenThankYouRoute } from './routes/f/$token/thank-you'
 import { Route as FTokenSorryRoute } from './routes/f/$token/sorry'
 
 export const routeTree = RootRoute.addChildren([
+  IndexRoute,
   LoginRoute,
   SignUpRoute,
   SetupRoute,
