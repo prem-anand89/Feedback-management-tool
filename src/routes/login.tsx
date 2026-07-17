@@ -13,8 +13,8 @@ function LoginPage() {
         </div>
 
         <SignIn
-          afterSignInUrl="/dashboard"
-          signUpUrl="/signup"
+          afterSignInUrl={`${import.meta.env.BASE_URL}dashboard`}
+          signUpUrl={`${import.meta.env.BASE_URL}signup`}
         />
       </div>
     </div>

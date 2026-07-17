@@ -49,7 +49,7 @@ function ThankYouPage() {
         )}
 
         <Button variant="outline" className="w-full" size="lg" asChild>
-          <a href="/">Close</a>
+          <a href={import.meta.env.BASE_URL}>Close</a>
         </Button>
 
         <p className="text-center text-xs text-muted-foreground">A member of our team may reach out to follow up on your feedback.</p>

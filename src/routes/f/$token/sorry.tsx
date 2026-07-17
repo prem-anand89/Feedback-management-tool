@@ -42,7 +42,7 @@ function SorryPage() {
         </div>
 
         <Button variant="outline" className="w-full" size="lg" asChild>
-          <a href="/">Close</a>
+          <a href={import.meta.env.BASE_URL}>Close</a>
         </Button>
 
         <p className="text-center text-xs text-muted-foreground">We appreciate your feedback and the opportunity to improve.</p>
