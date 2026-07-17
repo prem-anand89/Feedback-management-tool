@@ -68,7 +68,7 @@ export const notifyComplaintCreated = internalAction({
       <p>A new complaint has been created in <strong>${clinicName}</strong>.</p>
       <p><strong>Priority:</strong> ${priority}</p>
       <p>
-        <a href="${DASHBOARD_URL}/complaints" style="background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+        <a href="${DASHBOARD_URL}/feedback" style="background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
           View Complaint
         </a>
       </p>
