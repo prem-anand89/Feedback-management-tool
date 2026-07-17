@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Nunito:wght@700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -45,25 +45,25 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: 264 13% 12%;
-    --foreground: 46 20% 92%;
+    --background: 264 14% 11%;
+    --foreground: 44 30% 96%;
     --card: 264 12% 16%;
-    --card-foreground: 46 20% 92%;
+    --card-foreground: 44 30% 96%;
     --popover: 264 12% 16%;
-    --popover-foreground: 46 20% 92%;
-    --primary: 285 24% 62%;
-    --primary-foreground: 288 30% 12%;
-    --secondary: 140 26% 55%;
-    --secondary-foreground: 140 35% 10%;
+    --popover-foreground: 44 30% 96%;
+    --primary: 286 40% 74%;
+    --primary-foreground: 288 35% 12%;
+    --secondary: 142 36% 62%;
+    --secondary-foreground: 140 40% 9%;
     --muted: 264 8% 22%;
-    --muted-foreground: 46 10% 68%;
-    --accent: 285 16% 27%;
-    --accent-foreground: 46 20% 92%;
-    --destructive: 349 52% 60%;
+    --muted-foreground: 44 14% 78%;
+    --accent: 285 18% 28%;
+    --accent-foreground: 44 30% 96%;
+    --destructive: 349 58% 64%;
     --destructive-foreground: 0 0% 100%;
-    --border: 264 8% 24%;
-    --input: 264 8% 24%;
-    --ring: 285 24% 62%;
+    --border: 264 9% 26%;
+    --input: 264 9% 26%;
+    --ring: 286 40% 74%;
 
     --chip-blue: 200 22% 26%;
     --chip-blue-fg: 200 42% 76%;

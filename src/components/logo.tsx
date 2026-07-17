@@ -47,7 +47,7 @@ export function Logo({ className, markClassName }: { className?: string; markCla
   return (
     <div className={cn('flex items-center gap-2', className)}>
       <LogoMark className={markClassName} />
-      <span className="text-lg font-extrabold tracking-tight leading-none">
+      <span className="font-display text-lg font-extrabold tracking-tight leading-none">
         <span className="text-primary">Care</span>
         <span className="text-secondary">Connect</span>
       </span>

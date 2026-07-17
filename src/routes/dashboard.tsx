@@ -2,10 +2,22 @@ import { createRoute } from '@tanstack/react-router'
 import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { MessageSquare, Clock, Star, Globe, AlertCircle, CheckCircle } from 'lucide-react'
 import { useQuery, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+
+// Shared recharts styling so both charts read cleanly in light and dark.
+const axisTick = { fontSize: 12, fill: 'hsl(var(--muted-foreground))' }
+const gridStroke = 'hsl(var(--border))'
+const tooltipStyle = {
+  background: 'hsl(var(--popover))',
+  border: '1px solid hsl(var(--border))',
+  borderRadius: 12,
+  color: 'hsl(var(--popover-foreground))',
+  fontSize: 12,
+  boxShadow: '0 6px 22px -6px rgba(45,35,45,0.18)',
+}
 
 function relativeTime(ts: number) {
   const diffMs = Date.now() - ts
@@ -61,6 +73,7 @@ function DashboardPage() {
   const feedbackRequests = useQuery(api.feedback.listFeedbackRequests, staffUser ? {} : 'skip') ?? []
   const feedbackResponses = useQuery(api.feedback.listFeedbackResponses, staffUser ? {} : 'skip') ?? []
   const complaints = useQuery(api.complaints.listComplaints, staffUser ? {} : 'skip') ?? []
+  const appointments = useQuery(api.appointments.listAppointments, staffUser ? {} : 'skip') ?? []
   const reviewStats = useQuery(api.reviews.getReviewStats, staffUser ? {} : 'skip')
 
   const todayFeedback = feedbackRequests.filter((f) => {
@@ -97,17 +110,23 @@ function DashboardPage() {
     .sort((a, b) => b.timestamp - a.timestamp)
     .slice(0, 6)
 
-  // Trailing 6 months of feedback volume, bucketed by month.
-  const monthlyData = Array.from({ length: 6 }).map((_, i) => {
+  // Trailing 6 months, bucketed by month: positive vs negative feedback, and
+  // bookings (appointments scheduled that month).
+  const monthly = Array.from({ length: 6 }).map((_, i) => {
     const d = new Date()
     d.setDate(1)
     d.setMonth(d.getMonth() - (5 - i))
-    const label = d.toLocaleDateString([], { month: 'short' })
-    const count = feedbackResponses.filter((f) => {
-      const submitted = new Date(f.submittedAt)
-      return submitted.getFullYear() === d.getFullYear() && submitted.getMonth() === d.getMonth()
-    }).length
-    return { month: label, count }
+    const inMonth = (ts: number) => {
+      const x = new Date(ts)
+      return x.getFullYear() === d.getFullYear() && x.getMonth() === d.getMonth()
+    }
+    const monthResponses = feedbackResponses.filter((f) => inMonth(f.submittedAt))
+    return {
+      month: d.toLocaleDateString([], { month: 'short' }),
+      positive: monthResponses.filter((f) => f.rating >= 4).length,
+      negative: monthResponses.filter((f) => f.rating <= 3).length,
+      bookings: appointments.filter((a) => inMonth(a.scheduledAt)).length,
+    }
   })
 
   if (isAuthenticated && staffUser === null) {
@@ -143,16 +162,19 @@ function DashboardPage() {
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Monthly feedback volume</CardTitle>
+              <CardTitle>Feedback — positive vs negative</CardTitle>
+              <CardDescription>Responses each month, by sentiment</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
-                  <Tooltip cursor={{ fill: '#F1F5F9' }} />
-                  <Bar dataKey="count" fill="#0F172A" radius={[6, 6, 0, 0]} />
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={monthly} barGap={2} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={axisTick} />
+                  <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={axisTick} />
+                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'hsl(var(--muted) / 0.5)' }} />
+                  <Legend iconType="circle" iconSize={9} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                  <Bar dataKey="positive" name="Positive" stackId="f" fill="hsl(var(--secondary))" maxBarSize={20} />
+                  <Bar dataKey="negative" name="Negative" stackId="f" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} maxBarSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -160,32 +182,58 @@ function DashboardPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Recent activity</CardTitle>
+              <CardTitle>Bookings</CardTitle>
+              <CardDescription>Appointments scheduled each month</CardDescription>
             </CardHeader>
             <CardContent>
-              {recentActivity.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No activity yet.</p>
-              ) : (
-                <div className="space-y-1">
-                  {recentActivity.map((activity) => {
-                    const Icon = activity.icon
-                    return (
-                      <div key={activity.id} className="flex items-center gap-3 border-b border-border py-3 last:border-0">
-                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${metricIconClass[activity.color]}`}>
-                          <Icon className="h-3.5 w-3.5" />
-                        </div>
-                        <p className="flex-1 text-sm font-medium">{activity.message}</p>
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                          {relativeTime(activity.timestamp)}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart data={monthly} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={axisTick} />
+                  <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={axisTick} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Line
+                    type="monotone"
+                    dataKey="bookings"
+                    name="Bookings"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2.5}
+                    dot={{ r: 3.5, fill: 'hsl(var(--primary))', strokeWidth: 0 }}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {recentActivity.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No activity yet.</p>
+            ) : (
+              <div className="space-y-1">
+                {recentActivity.map((activity) => {
+                  const Icon = activity.icon
+                  return (
+                    <div key={activity.id} className="flex items-center gap-3 border-b border-border py-3 last:border-0">
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${metricIconClass[activity.color]}`}>
+                        <Icon className="h-3.5 w-3.5" />
+                      </div>
+                      <p className="flex-1 text-sm font-medium">{activity.message}</p>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                        {relativeTime(activity.timestamp)}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </StaffLayout>
   )
