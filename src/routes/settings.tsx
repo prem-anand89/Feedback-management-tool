@@ -283,14 +283,14 @@ function SettingsPage() {
                   <div className="flex gap-2">
                     <input
                       readOnly
-                      value={`${window.location.origin}/book/${clinic._id}`}
+                      value={`${window.location.origin}${import.meta.env.BASE_URL}book/${clinic._id}`}
                       className="w-full rounded-xl border border-input bg-muted px-3.5 py-2.5 text-sm text-muted-foreground"
                     />
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
-                      onClick={() => navigator.clipboard.writeText(`${window.location.origin}/book/${clinic._id}`)}
+                      onClick={() => navigator.clipboard.writeText(`${window.location.origin}${import.meta.env.BASE_URL}book/${clinic._id}`)}
                       title="Copy link"
                     >
                       <Copy className="h-4 w-4" />
