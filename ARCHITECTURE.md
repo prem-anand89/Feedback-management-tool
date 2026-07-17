@@ -10,18 +10,17 @@ Build a **standalone, multi-clinic-ready app** — usable by any clinic type, no
 - **Patient notification channel**: WhatsApp only for MVP
 - **Booking**: separate app/module, loosely integrated (not this codebase)
 - **Website/EMR**: embeddable widget now; EMR integration designed as a pluggable future phase
-- **Backend/hosting**: Convex + Clerk (Supabase/Vercel project quotas were already in use elsewhere), with Lovable for initial AI-assisted UI scaffolding before manual takeover
+- **Backend/hosting**: Convex + Clerk (Supabase/Vercel project quotas were already in use elsewhere)
 
 ---
 
 ## 1. Recommended Architecture
 
-**Stack**: React (Vite) + TypeScript + Tailwind, scaffolded initially in **Lovable**, then exported to this repo — backed by **Convex** (database, server functions, real-time, scheduled jobs/cron) and **Clerk** (auth). Hosting on Netlify or Cloudflare Pages (free tier) or Lovable's own built-in publish during early iteration.
+**Stack**: React (Vite) + TypeScript + Tailwind — backed by **Convex** (database, server functions, real-time, scheduled jobs/cron) and **Clerk** (auth). Hosted on GitHub Pages via GitHub Actions.
 
 **Why this combination**:
 - Convex + Clerk avoid needing more Supabase/Vercel project slots, on genuinely free tiers (Convex: 1M function calls/mo free, no project-count cap; Clerk: free up to 10k users).
 - Convex's TypeScript-native functions + built-in scheduled jobs replace a separate cron/worker service — the automation engine (delays, reminders) is just Convex scheduled functions.
-- **Lovable workflow, and its limits**: use Lovable purely for UI scaffolding (React/Vite/Tailwind pages and components). Its native one-click backend integration is Supabase, not Convex, so after scaffolding, sync to GitHub and wire up Convex (data layer, functions) and Clerk (auth) by hand — there's no automatic Lovable↔Convex integration. Treat Lovable strictly as a frontend generator here, not an end-to-end app builder.
 - **Trade-off to accept**: Convex is not SQL/Postgres — its data model is TypeScript-defined documents/tables. Merging into TheraNet later will need an export/transform step if TheraNet's backend expects relational Postgres (common for clinic/EMR-style software), rather than a simple `pg_dump`/restore. This is a deliberate trade for build speed now.
 
 **Multi-tenancy**: single deployment serving all clinics, `clinicId` on every table (not one deployment per clinic). Clinic staff authenticate via Clerk (email/password or magic link) with a `role` (owner/therapist/receptionist) stored in Clerk metadata or a Convex `staffUsers` table. Patients never log in — they interact via unique tokenized links sent over WhatsApp, matching the PRD's "no spam / minimal friction" design principle.
@@ -47,13 +46,12 @@ Estimated for the target beta scale (~10 clinics, ~50 visits/clinic/week ≈ 2,0
 |---|---|---|
 | Convex (DB/functions/cron/real-time) | 1M function calls/mo, 0.5GB storage — comfortably covers this scale | ~$25/mo once outgrown |
 | Clerk (auth) | Free up to 10,000 monthly active users | Paid tiers start ~$25/mo beyond that |
-| Netlify / Cloudflare Pages (hosting) | Free tier covers typical beta traffic | Netlify Pro ~$19/mo if needed; Cloudflare Pages free tier lasts much longer |
-| Lovable (initial UI scaffolding) | Free tier for early prototyping (limited credits) | ~$20+/mo if heavier iteration is needed before takeover |
+| GitHub Pages (hosting) | Free for public repos, covers typical beta traffic | N/A |
 | WhatsApp messaging | Meta Cloud API: ~1,000 free service conversations/month | ~$0.005–$0.10/conversation beyond that — for 2,000/mo, expect **~$15–50/mo** |
 | Email (staff alerts) | Resend/SendGrid free tier (100-3,000/mo) | Effectively $0 at this scale |
 | Domain | Optional — free subdomain during beta | ~$10-15/year for a custom domain |
 
-**Bottom line**: infrastructure can realistically stay free during the beta, plus a small Lovable subscription only during UI scaffolding. **WhatsApp messaging is the one unavoidable, volume-scaling cost** regardless of provider — budget roughly **$15-50/month** for a 10-clinic beta, dominated by message volume rather than clinic count.
+**Bottom line**: infrastructure can realistically stay free during the beta. **WhatsApp messaging is the one unavoidable, volume-scaling cost** regardless of provider — budget roughly **$15-50/month** for a 10-clinic beta, dominated by message volume rather than clinic count.
 
 **Lead-time flag**: WhatsApp Business API setup requires Meta Business verification, which can take days to weeks — start this early since it's the main lead-time risk, not the coding.
 
@@ -83,15 +81,13 @@ Choosing Convex trades away a trivial `pg_dump`/restore path. When the merge hap
 
 ## 6. Phased Build Plan (adapted from PRD §18)
 
-1. **UI scaffolding in Lovable** — staff dashboard, patient feedback flow, and settings screens as a React/Vite/Tailwind app
-2. **Takeover** — sync Lovable's output to GitHub, clone locally, remove any Supabase scaffolding, set up Convex + Clerk
-3. **Foundation** — Convex schema (multi-tenant, `clinicId` on all tables), Clerk auth, deploy skeleton (Netlify/Cloudflare Pages free tier)
-4. **Feedback core** — visit-completion Convex function, patient-facing token-based feedback form, internal storage (FR-003, FR-004)
-5. **Automation engine** — Convex scheduled functions, configurable delays, 48h reminder (FR-001, FR-006)
-6. **WhatsApp integration** — start Meta Business verification immediately (longest lead time); send check-ins/reminders (FR-002)
-7. **Complaint handling** — detection rules, therapist follow-up actions, staff email notifications (FR-007–FR-009, §11)
-8. **Dashboard + analytics** — cards, patient timeline, reports (§7, §8, §10, §13)
-9. **Google Review integration** — configurable URL, click tracking (FR-005)
-10. **Embeddable website widget**
-11. **Pilot rollout** with real clinics + testing
-12. **Future**: EMR adapters, TheraNet embed/merge (per §5), connect to the separate booking module
+1. **Foundation** — React/Vite/TypeScript/Tailwind app scaffold, Convex schema (multi-tenant, `clinicId` on all tables), Clerk auth, deploy skeleton (GitHub Pages via GitHub Actions)
+2. **Feedback core** — visit-completion Convex function, patient-facing token-based feedback form, internal storage (FR-003, FR-004)
+3. **Automation engine** — Convex scheduled functions, configurable delays, 48h reminder (FR-001, FR-006)
+4. **WhatsApp integration** — start Meta Business verification immediately (longest lead time); send check-ins/reminders (FR-002)
+5. **Complaint handling** — detection rules, therapist follow-up actions, staff email notifications (FR-007–FR-009, §11)
+6. **Dashboard + analytics** — cards, patient timeline, reports (§7, §8, §10, §13)
+7. **Google Review integration** — configurable URL, click tracking (FR-005)
+8. **Embeddable website widget**
+9. **Pilot rollout** with real clinics + testing
+10. **Future**: EMR adapters, TheraNet embed/merge (per §5), connect to the separate booking module
