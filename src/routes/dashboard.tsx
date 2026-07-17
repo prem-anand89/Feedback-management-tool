@@ -167,7 +167,9 @@ function DashboardPage() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <MetricCard icon={CalendarClock} color="blue" value={todaysAppointments.length} label="Today's Appointments" />
+          <MetricCard icon={MessageSquareText} color="purple" value={pendingRequests.length} label="Pending Requests" />
           <MetricCard icon={MessageSquare} color="blue" value={todayFeedback} label="Today's Feedback" />
           <MetricCard icon={Clock} color="amber" value={pendingFeedback} label="Pending Feedback" />
           <MetricCard icon={Star} color="green" value={`${avgRating} / 5`} label="Average Rating" />

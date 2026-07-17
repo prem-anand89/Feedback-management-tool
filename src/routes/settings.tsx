@@ -175,7 +175,7 @@ function SettingsPage() {
             <TabsList>
               <TabsTrigger value="profile">Clinic Profile</TabsTrigger>
               <TabsTrigger value="booking">Booking &amp; Reminders</TabsTrigger>
-              <TabsTrigger value="automation">Automation &amp; Templates</TabsTrigger>
+              <TabsTrigger value="automation">Feedback Automation</TabsTrigger>
             </TabsList>
 
             <TabsContent value="profile" className="space-y-6">
@@ -192,26 +192,6 @@ function SettingsPage() {
                       value={settings.clinicName}
                       onChange={(e) => setSettings({ ...settings, clinicName: e.target.value })}
                       disabled={!isOwner}
-                      className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Google Review Integration</CardTitle>
-                  <CardDescription>Configure your clinic's Google Review link</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Google Review URL</label>
-                    <input
-                      type="url"
-                      value={settings.googleReviewUrl}
-                      onChange={(e) => isOwner && setSettings({ ...settings, googleReviewUrl: e.target.value })}
-                      disabled={!isOwner}
-                      placeholder="https://google.com/maps/place/..."
                       className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                     />
                   </div>
@@ -463,6 +443,26 @@ function SettingsPage() {
             </TabsContent>
 
             <TabsContent value="automation" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Google Review Integration</CardTitle>
+                  <CardDescription>Configure your clinic's Google Review link</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Google Review URL</label>
+                    <input
+                      type="url"
+                      value={settings.googleReviewUrl}
+                      onChange={(e) => isOwner && setSettings({ ...settings, googleReviewUrl: e.target.value })}
+                      disabled={!isOwner}
+                      placeholder="https://google.com/maps/place/..."
+                      className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle>Automation Settings</CardTitle>
