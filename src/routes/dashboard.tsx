@@ -1,24 +1,12 @@
-import { createRoute } from '@tanstack/react-router'
+import { createRoute, Link } from '@tanstack/react-router'
 import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { MessageSquare, Clock, Star, Globe, AlertCircle, CheckCircle, CalendarClock } from 'lucide-react'
+import { MessageSquare, Clock, Star, Globe, AlertCircle, CheckCircle, CalendarClock, MessageSquareText } from 'lucide-react'
 import { useQuery, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { IconBadge } from '@/components/ui/icon-badge'
-
-// Shared recharts styling so both charts read cleanly in light and dark.
-const axisTick = { fontSize: 12, fill: 'hsl(var(--muted-foreground))' }
-const gridStroke = 'hsl(var(--border))'
-const tooltipStyle = {
-  background: 'hsl(var(--popover))',
-  border: '1px solid hsl(var(--border))',
-  borderRadius: 12,
-  color: 'hsl(var(--popover-foreground))',
-  fontSize: 12,
-  boxShadow: '0 6px 22px -6px rgba(45,35,45,0.18)',
-}
+import { Badge, type BadgeVariant } from '@/components/ui/badge'
 
 function relativeTime(ts: number) {
   const diffMs = Date.now() - ts
@@ -72,8 +60,8 @@ function DashboardPage() {
   const feedbackRequests = useQuery(api.feedback.listFeedbackRequests, staffUser ? {} : 'skip') ?? []
   const feedbackResponses = useQuery(api.feedback.listFeedbackResponses, staffUser ? {} : 'skip') ?? []
   const complaints = useQuery(api.complaints.listComplaints, staffUser ? {} : 'skip') ?? []
-  const appointments = useQuery(api.appointments.listAppointments, staffUser ? {} : 'skip') ?? []
   const upcomingAppointments = useQuery(api.appointments.listUpcomingAppointments, staffUser ? {} : 'skip') ?? []
+  const pendingRequests = useQuery(api.appointmentRequests.listPendingAppointmentRequests, staffUser ? {} : 'skip') ?? []
   const patients = useQuery(api.patients.listPatients, staffUser ? {} : 'skip') ?? []
   const staffList = useQuery(api.clinics.listStaff, staffUser ? {} : 'skip') ?? []
   const reviewStats = useQuery(api.reviews.getReviewStats, staffUser ? {} : 'skip')
@@ -119,24 +107,10 @@ function DashboardPage() {
     .sort((a, b) => b.timestamp - a.timestamp)
     .slice(0, 6)
 
-  // Trailing 6 months, bucketed by month: positive vs negative feedback, and
-  // bookings (appointments scheduled that month).
-  const monthly = Array.from({ length: 6 }).map((_, i) => {
-    const d = new Date()
-    d.setDate(1)
-    d.setMonth(d.getMonth() - (5 - i))
-    const inMonth = (ts: number) => {
-      const x = new Date(ts)
-      return x.getFullYear() === d.getFullYear() && x.getMonth() === d.getMonth()
-    }
-    const monthResponses = feedbackResponses.filter((f) => inMonth(f.submittedAt))
-    return {
-      month: d.toLocaleDateString([], { month: 'short' }),
-      positive: monthResponses.filter((f) => f.rating >= 4).length,
-      negative: monthResponses.filter((f) => f.rating <= 3).length,
-      bookings: appointments.filter((a) => inMonth(a.scheduledAt)).length,
-    }
-  })
+  const attentionComplaints = complaints
+    .filter((c) => c.status === 'pending' || c.status === 'in-progress')
+    .sort((a, b) => (a.priority === 'high' ? -1 : b.priority === 'high' ? 1 : b.createdAt - a.createdAt))
+    .slice(0, 5)
 
   if (isAuthenticated && staffUser === null) {
     return (
@@ -156,7 +130,7 @@ function DashboardPage() {
       <div className="space-y-8">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Overview of feedback, complaints, and reputation this week.</p>
+          <p className="text-muted-foreground">What needs your attention right now. For trends over time, see Analytics.</p>
         </div>
 
         <Card>
@@ -205,47 +179,71 @@ function DashboardPage() {
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Feedback — positive vs negative</CardTitle>
-              <CardDescription>Responses each month, by sentiment</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <MessageSquareText className="h-4 w-4 text-secondary" />
+                Appointment Requests
+                {pendingRequests.length > 0 && (
+                  <span className="rounded-full bg-secondary/15 px-2 py-0.5 text-xs font-semibold text-secondary">
+                    {pendingRequests.length}
+                  </span>
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={monthly} barGap={2} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={axisTick} />
-                  <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={axisTick} />
-                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'hsl(var(--muted) / 0.5)' }} />
-                  <Legend iconType="circle" iconSize={9} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-                  <Bar dataKey="positive" name="Positive" stackId="f" fill="hsl(var(--secondary))" maxBarSize={20} />
-                  <Bar dataKey="negative" name="Negative" stackId="f" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} maxBarSize={20} />
-                </BarChart>
-              </ResponsiveContainer>
+              {pendingRequests.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No pending requests.</p>
+              ) : (
+                <div className="space-y-1">
+                  {pendingRequests.slice(0, 5).map((req) => (
+                    <div key={req._id} className="flex items-center gap-3 border-b border-border py-3 last:border-0">
+                      <IconBadge icon={MessageSquareText} size="xs" colorClassName="bg-chipPurple text-chipPurple-foreground" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{req.patientName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Requested {req.preferredDate} at {req.preferredTime}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  <Link to="/appointments" className="mt-2 inline-block text-xs font-medium text-primary hover:underline">
+                    Review in Appointments →
+                  </Link>
+                </div>
+              )}
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Bookings</CardTitle>
-              <CardDescription>Appointments scheduled each month</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <AlertCircle className="h-4 w-4 text-destructive" />
+                Complaints Needing Attention
+                {attentionComplaints.length > 0 && (
+                  <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
+                    {attentionComplaints.length}
+                  </span>
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={monthly} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={axisTick} />
-                  <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={axisTick} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Line
-                    type="monotone"
-                    dataKey="bookings"
-                    name="Bookings"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2.5}
-                    dot={{ r: 3.5, fill: 'hsl(var(--primary))', strokeWidth: 0 }}
-                    activeDot={{ r: 5 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {attentionComplaints.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nothing open right now.</p>
+              ) : (
+                <div className="space-y-1">
+                  {attentionComplaints.map((c) => (
+                    <div key={c._id} className="flex items-center gap-3 border-b border-border py-3 last:border-0">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{patientName(c.patientId)}</p>
+                        <p className="text-xs text-muted-foreground">{c.status.replace('-', ' ')}</p>
+                      </div>
+                      <Badge variant={`priority-${c.priority}` as BadgeVariant}>{c.priority}</Badge>
+                    </div>
+                  ))}
+                  <Link to="/feedback" className="mt-2 inline-block text-xs font-medium text-primary hover:underline">
+                    Manage in Feedback →
+                  </Link>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
