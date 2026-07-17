@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { createRoute } from '@tanstack/react-router'
+import { createRoute, Link } from '@tanstack/react-router'
 import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Phone, Plus, Stethoscope, Calendar, CalendarClock, MessageSquare, Star, XCircle } from 'lucide-react'
+import { Phone, Plus, Stethoscope, Calendar, CalendarClock, MessageSquare, Star, XCircle, Archive, ArchiveRestore, Upload } from 'lucide-react'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+import { IconBadge } from '@/components/ui/icon-badge'
 
 const inputClass =
   'w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50'
@@ -34,13 +35,16 @@ function PatientsPage() {
   const { isAuthenticated } = useConvexAuth()
   const staffUser = useQuery(api.clinics.getMyStaffUser, isAuthenticated ? {} : 'skip')
   const clinic = useQuery(api.clinics.getMyClinic, isAuthenticated ? {} : 'skip')
-  const patients = useQuery(api.patients.listPatients, isAuthenticated ? {} : 'skip') ?? []
+  const [showArchived, setShowArchived] = useState(false)
+  const patients = useQuery(api.patients.listPatients, isAuthenticated ? { includeArchived: showArchived } : 'skip') ?? []
   const visits = useQuery(api.visits.listVisits, isAuthenticated ? {} : 'skip') ?? []
   const staffList = useQuery(api.clinics.listStaff, isAuthenticated ? {} : 'skip') ?? []
   const feedbackResponses = useQuery(api.feedback.listFeedbackResponses, isAuthenticated ? {} : 'skip') ?? []
   const reviewRequests = useQuery(api.reviews.listReviewRequests, isAuthenticated ? {} : 'skip') ?? []
 
   const createPatient = useMutation(api.patients.createPatient)
+  const archivePatient = useMutation(api.patients.archivePatient)
+  const unarchivePatient = useMutation(api.patients.unarchivePatient)
   const createVisit = useMutation(api.visits.createVisit)
   const completeVisit = useMutation(api.visits.completeVisit)
   const createAppointment = useMutation(api.appointments.createAppointment)
@@ -213,6 +217,26 @@ function PatientsPage() {
     }
   }
 
+  const handleArchivePatient = async () => {
+    if (!selected) return
+    if (!window.confirm(`Archive ${selected.name}? Their visit and feedback history is kept — they'll just be hidden from the default patient list. You can unarchive them anytime.`)) {
+      return
+    }
+    try {
+      await archivePatient({ patientId: selected._id })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to archive patient')
+    }
+  }
+
+  const handleUnarchivePatient = async (patientId: string) => {
+    try {
+      await unarchivePatient({ patientId: patientId as any })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to unarchive patient')
+    }
+  }
+
   const handleScheduleAppointment = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selected || !apptDateTime || !apptTherapistId) {
@@ -248,17 +272,40 @@ function PatientsPage() {
             <h1 className="text-2xl font-semibold tracking-tight">Patients</h1>
             <p className="text-muted-foreground">Visit → feedback → resolution history at a glance.</p>
           </div>
-          <Button onClick={() => setShowAddPatient(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Patient
-          </Button>
+          <div className="flex gap-2">
+            {staffUser?.role === 'owner' && (
+              <Button asChild variant="outline">
+                <Link to="/patients/import">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import CSV
+                </Link>
+              </Button>
+            )}
+            <Button onClick={() => setShowAddPatient(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Patient
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
           <Card className="md:col-span-1">
             <CardHeader>
-              <CardTitle className="text-xl">Patients</CardTitle>
-              <CardDescription>{patients.length} total</CardDescription>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <CardTitle className="text-xl">Patients</CardTitle>
+                  <CardDescription>
+                    {patients.filter((p) => !p.archivedAt).length} active
+                    {showArchived && ` · ${patients.filter((p) => p.archivedAt).length} archived`}
+                  </CardDescription>
+                </div>
+                <button
+                  onClick={() => setShowArchived((v) => !v)}
+                  className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                >
+                  {showArchived ? 'Hide archived' : 'Show archived'}
+                </button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -266,21 +313,33 @@ function PatientsPage() {
                   <p className="text-sm text-muted-foreground">No patients yet. Add one to get started.</p>
                 ) : (
                   patients.map((patient) => (
-                    <button
+                    <div
                       key={patient._id}
-                      onClick={() => setSelectedPatientId(patient._id)}
-                      className={`w-full rounded-xl border p-3 text-left transition-colors ${
+                      className={`flex items-center gap-2 rounded-xl border p-3 transition-colors ${
                         selectedPatientId === patient._id
                           ? 'border-primary bg-primary/5'
                           : 'border-border hover:bg-accent'
-                      }`}
+                      } ${patient.archivedAt ? 'opacity-60' : ''}`}
                     >
-                      <p className="font-semibold">{patient.name}</p>
-                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Phone className="h-3 w-3" />
-                        {patient.phone}
-                      </p>
-                    </button>
+                      <button onClick={() => setSelectedPatientId(patient._id)} className="min-w-0 flex-1 text-left">
+                        <p className="truncate font-semibold">{patient.name}</p>
+                        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Phone className="h-3 w-3" />
+                          {patient.phone}
+                          {patient.archivedAt && <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">Archived</span>}
+                        </p>
+                      </button>
+                      {patient.archivedAt && (
+                        <Button
+                          onClick={() => handleUnarchivePatient(patient._id)}
+                          size="sm"
+                          variant="ghost"
+                          title="Unarchive"
+                        >
+                          <ArchiveRestore className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
                   ))
                 )}
               </div>
@@ -307,6 +366,17 @@ function PatientsPage() {
                       <Plus className="mr-2 h-4 w-4" />
                       Log Visit
                     </Button>
+                    {selected.archivedAt ? (
+                      <Button onClick={() => handleUnarchivePatient(selected._id)} size="sm" variant="outline">
+                        <ArchiveRestore className="mr-2 h-4 w-4" />
+                        Unarchive
+                      </Button>
+                    ) : (
+                      <Button onClick={handleArchivePatient} size="sm" variant="ghost" className="text-destructive hover:text-destructive">
+                        <Archive className="mr-2 h-4 w-4" />
+                        Archive
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -319,9 +389,7 @@ function PatientsPage() {
                       const Icon = entry.icon
                       return (
                         <div key={entry.id} className="flex gap-3 border-b border-border py-3 last:border-0">
-                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${timelineIconClass[entry.color]}`}>
-                            <Icon className="h-4 w-4" />
-                          </div>
+                          <IconBadge icon={Icon} size="xs" colorClassName={timelineIconClass[entry.color]} />
                           <div className="min-w-0 flex-1">
                             <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{entry.kind}</p>
                             <p className="text-sm font-medium">{entry.title}</p>
@@ -352,9 +420,7 @@ function PatientsPage() {
           ) : (
             <Card className="md:col-span-2">
               <CardContent className="flex h-full min-h-48 flex-col items-center justify-center gap-2 py-10 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
-                  <Stethoscope className="h-6 w-6 text-muted-foreground" />
-                </div>
+                <IconBadge icon={Stethoscope} size="md" />
                 <p className="text-sm text-muted-foreground">Select a patient to view their timeline.</p>
               </CardContent>
             </Card>

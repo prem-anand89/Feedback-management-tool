@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { CalendarClock, Plus, Clock, CheckCircle2, XCircle, MessageSquareText } from 'lucide-react'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+import { IconBadge } from '@/components/ui/icon-badge'
 
 const inputClass =
   'w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50'
@@ -329,9 +330,7 @@ function AppointmentsPage() {
         {upcoming.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center gap-2 py-10 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
-                <CalendarClock className="h-6 w-6 text-muted-foreground" />
-              </div>
+              <IconBadge icon={CalendarClock} size="md" />
               <p className="text-sm text-muted-foreground">No upcoming appointments. Schedule one to get started.</p>
             </CardContent>
           </Card>

@@ -34,7 +34,7 @@ export const createComplaintFromFeedback = internalAction({
     patientId: v.id('patients'),
   },
   handler: async (ctx, { feedbackResponseId, clinicId, patientId }) => {
-    const complaintId = await ctx.runMutation(internal.complaints.createComplaint, {
+    const { complaintId, priority } = await ctx.runMutation(internal.complaints.createComplaint, {
       clinicId,
       feedbackResponseId,
       patientId,
@@ -49,7 +49,7 @@ export const createComplaintFromFeedback = internalAction({
         complaintId: complaintId.toString(),
         clinicId,
         patientId,
-        priority: 'medium',
+        priority,
         staffEmail: ownerOrTherapist.email,
         staffName: ownerOrTherapist.name,
         clinicName: clinic.name,
@@ -92,7 +92,7 @@ export const createComplaint = internalMutation({
       createdAt: Date.now(),
       updatedAt: Date.now(),
     })
-    return complaintId
+    return { complaintId, priority }
   },
 })
 
@@ -106,6 +106,13 @@ export const assignComplaint = mutation({
     const complaint = await ctx.db.get(complaintId)
     if (!complaint || complaint.clinicId !== staffUser.clinicId) {
       throw new Error('Complaint not found')
+    }
+
+    if (staffId) {
+      const targetStaff = await ctx.db.get(staffId)
+      if (!targetStaff || targetStaff.clinicId !== staffUser.clinicId) {
+        throw new Error('Staff member not found in this clinic')
+      }
     }
 
     await ctx.db.patch(complaintId, { assignedToId: staffId, updatedAt: Date.now() })

@@ -50,10 +50,15 @@ export default defineSchema({
     // Email is rarely collected in practice — phone is the primary contact.
     email: v.optional(v.string()),
     phone: v.string(),
+    // Soft-delete: set when staff archive a patient. Visit/feedback history
+    // is preserved; archived patients are just excluded from the default
+    // roster view. Never filtered out of dedup lookups (findOrCreatePatient).
+    archivedAt: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index('by_clinic', ['clinicId'])
-    .index('by_email', ['clinicId', 'email']),
+    .index('by_email', ['clinicId', 'email'])
+    .index('by_clinic_phone', ['clinicId', 'phone']),
 
   visits: defineTable({
     clinicId: v.id('clinics'),

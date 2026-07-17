@@ -3,15 +3,14 @@ import { Route as FRoute } from '../'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { AlertCircle } from 'lucide-react'
+import { IconBadge } from '@/components/ui/icon-badge'
 
 function SorryPage() {
   return (
     <Card>
       <CardHeader className="space-y-2 text-center">
         <div className="flex justify-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary/15">
-            <AlertCircle className="h-9 w-9 text-secondary" />
-          </div>
+          <IconBadge icon={AlertCircle} size="xl" colorClassName="bg-secondary/15 text-secondary" />
         </div>
         <CardTitle>We're Sorry to Hear That</CardTitle>
         <CardDescription>Your feedback has been received</CardDescription>

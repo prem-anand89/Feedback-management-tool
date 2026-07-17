@@ -3,6 +3,7 @@ import { Route as FRoute } from '../'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, ExternalLink } from 'lucide-react'
+import { IconBadge } from '@/components/ui/icon-badge'
 
 // Convex's HTTP Actions live on the .convex.site domain for a given
 // deployment, derived from the .convex.cloud client URL — there's no
@@ -20,9 +21,7 @@ function ThankYouPage() {
     <Card>
       <CardHeader className="space-y-2 text-center">
         <div className="flex justify-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-            <CheckCircle className="h-9 w-9 text-primary" />
-          </div>
+          <IconBadge icon={CheckCircle} size="xl" colorClassName="bg-primary/10 text-primary" />
         </div>
         <CardTitle>Thank You!</CardTitle>
         <CardDescription>Your feedback has been submitted successfully</CardDescription>

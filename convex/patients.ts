@@ -4,13 +4,14 @@ import { Id } from './_generated/dataModel'
 import { requireStaffUser } from './lib/auth'
 
 export const listPatients = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { includeArchived: v.optional(v.boolean()) },
+  handler: async (ctx, { includeArchived }) => {
     const staffUser = await requireStaffUser(ctx)
-    return await ctx.db
+    const patients = await ctx.db
       .query('patients')
       .withIndex('by_clinic', (q) => q.eq('clinicId', staffUser.clinicId))
       .collect()
+    return includeArchived ? patients : patients.filter((p) => !p.archivedAt)
   },
 })
 
@@ -43,8 +44,7 @@ export async function findOrCreatePatient(
 ): Promise<Id<'patients'>> {
   const existing = await ctx.db
     .query('patients')
-    .withIndex('by_clinic', (q) => q.eq('clinicId', args.clinicId))
-    .filter((q) => q.eq(q.field('phone'), args.phone))
+    .withIndex('by_clinic_phone', (q) => q.eq('clinicId', args.clinicId).eq('phone', args.phone))
     .first()
   if (existing) return existing._id
 
@@ -65,15 +65,40 @@ export const createPatient = mutation({
   },
   handler: async (ctx, { name, email, phone }) => {
     const staffUser = await requireStaffUser(ctx)
-    // Email is rarely collected; only persist it when actually provided.
-    const trimmedEmail = email?.trim()
-    const patientId = await ctx.db.insert('patients', {
+    // Dedup by phone within the clinic, same as the booking-request flow —
+    // manual staff entry shouldn't be able to create a second record for a
+    // patient who already exists.
+    return await findOrCreatePatient(ctx, {
       clinicId: staffUser.clinicId,
       name,
-      ...(trimmedEmail ? { email: trimmedEmail } : {}),
       phone,
-      createdAt: Date.now(),
+      email: email?.trim() || undefined,
     })
+  },
+})
+
+export const archivePatient = mutation({
+  args: { patientId: v.id('patients') },
+  handler: async (ctx, { patientId }) => {
+    const staffUser = await requireStaffUser(ctx)
+    const patient = await ctx.db.get(patientId)
+    if (!patient || patient.clinicId !== staffUser.clinicId) {
+      throw new Error('Patient not found')
+    }
+    await ctx.db.patch(patientId, { archivedAt: Date.now() })
+    return patientId
+  },
+})
+
+export const unarchivePatient = mutation({
+  args: { patientId: v.id('patients') },
+  handler: async (ctx, { patientId }) => {
+    const staffUser = await requireStaffUser(ctx)
+    const patient = await ctx.db.get(patientId)
+    if (!patient || patient.clinicId !== staffUser.clinicId) {
+      throw new Error('Patient not found')
+    }
+    await ctx.db.patch(patientId, { archivedAt: undefined })
     return patientId
   },
 })

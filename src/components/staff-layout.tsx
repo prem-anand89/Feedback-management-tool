@@ -4,7 +4,6 @@ import { useUser, useClerk } from '@clerk/clerk-react'
 import {
   LayoutDashboard,
   Inbox,
-  AlertTriangle,
   Users,
   CalendarClock,
   BarChart3,
@@ -20,8 +19,7 @@ import { cn } from '@/lib/utils'
 const nav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/appointments', label: 'Appointments', icon: CalendarClock },
-  { to: '/feedback', label: 'Feedback Inbox', icon: Inbox },
-  { to: '/complaints', label: 'Complaints', icon: AlertTriangle },
+  { to: '/feedback', label: 'Feedback', icon: Inbox },
   { to: '/patients', label: 'Patients', icon: Users },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },

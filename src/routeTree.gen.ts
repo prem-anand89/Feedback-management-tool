@@ -8,6 +8,7 @@ import { Route as AppointmentsRoute } from './routes/appointments'
 import { Route as FeedbackRoute } from './routes/feedback'
 import { Route as ComplaintsRoute } from './routes/complaints'
 import { Route as PatientsRoute } from './routes/patients'
+import { Route as PatientsImportRoute } from './routes/patients.import'
 import { Route as AnalyticsRoute } from './routes/analytics'
 import { Route as SettingsRoute } from './routes/settings'
 import { Route as BookRoute } from './routes/book.$clinicId'
@@ -28,6 +29,7 @@ export const routeTree = RootRoute.addChildren([
   FeedbackRoute,
   ComplaintsRoute,
   PatientsRoute,
+  PatientsImportRoute,
   AnalyticsRoute,
   SettingsRoute,
   BookRoute,
