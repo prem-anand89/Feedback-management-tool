@@ -26,6 +26,12 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # Push Convex functions so the live backend stays in sync with the
+      # repo — the frontend build below has no effect on deployed function
+      # code, and nothing else was keeping the two in sync.
+      - run: npx convex deploy --yes
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
       # Run vite build directly rather than the tsc-gated `npm run build`:
       # the repo has pre-existing strict-mode type errors (unrelated to this
       # workflow) that block tsc but don't affect the actual bundle output.
