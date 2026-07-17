@@ -286,8 +286,8 @@ const submitWidgetFeedback = httpAction(async (ctx, request) => {
     const body = await request.json()
     const { clinicId, rating, comment } = body
 
-    if (!clinicId || !rating) {
-      return new Response(JSON.stringify({ error: 'clinicId and rating required' }), {
+    if (!clinicId || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+      return new Response(JSON.stringify({ error: 'clinicId is required and rating must be an integer between 1 and 5' }), {
         status: 400,
         headers: corsJsonHeaders,
       })

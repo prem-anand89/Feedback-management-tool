@@ -21,8 +21,8 @@ export const getMyClinic = query({
   },
 })
 
-// Clinics owned by the calling Clerk user — used during onboarding to check
-// whether this user already runs a clinic.
+// Not called from any UI yet — onboarding currently uses getMyStaffUser
+// instead. Kept for a future multi-clinic-per-owner flow.
 export const listMyClinics = query({
   args: {},
   handler: async (ctx) => {
@@ -46,6 +46,12 @@ export const createClinic = mutation({
   handler: async (ctx, { name, contactEmail, contactPhone, googleReviewUrl }) => {
     const identity = await ctx.auth.getUserIdentity()
     if (!identity) throw new Error('Not authenticated')
+
+    const existingStaffUser = await ctx.db
+      .query('staffUsers')
+      .withIndex('by_user', (q) => q.eq('userId', identity.subject))
+      .first()
+    if (existingStaffUser) throw new Error("You're already staff at a clinic")
 
     const resolvedEmail = contactEmail ?? identity.email
     if (!resolvedEmail) throw new Error('No contact email available for this account')
@@ -117,6 +123,11 @@ export const updateClinicSettings = mutation({
   },
 })
 
+// Not called from any UI yet (no staff-invite flow exists) — kept for a
+// future invite feature. Note: this lets any owner insert an arbitrary
+// Clerk userId as staff, including role 'owner', with no verification that
+// the userId corresponds to a real account. Fine while unreachable from the
+// UI, but must gain proper verification before it's wired into one.
 export const addStaffMember = mutation({
   args: {
     userId: v.string(),

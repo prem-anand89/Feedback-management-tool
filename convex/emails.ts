@@ -3,7 +3,10 @@ import { v } from 'convex/values'
 import { internal } from './_generated/api'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
-const DASHBOARD_URL = process.env.VITE_DASHBOARD_URL || 'http://localhost:5173'
+// Plain Convex env var, not VITE_-prefixed — this is backend code and never
+// touches the frontend bundle. Set via the Convex Dashboard's Environment
+// Variables to the deployed app's URL.
+const DASHBOARD_URL = process.env.DASHBOARD_URL || 'http://localhost:5173'
 // `onboarding@resend.dev` is Resend's built-in sandbox sender that works
 // without domain verification — use it as a safe default. Production
 // deployments should set RESEND_FROM_EMAIL to a verified custom domain.

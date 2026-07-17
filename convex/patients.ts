@@ -65,15 +65,14 @@ export const createPatient = mutation({
   },
   handler: async (ctx, { name, email, phone }) => {
     const staffUser = await requireStaffUser(ctx)
-    // Email is rarely collected; only persist it when actually provided.
-    const trimmedEmail = email?.trim()
-    const patientId = await ctx.db.insert('patients', {
+    // Dedup by phone within the clinic, same as the booking-request flow —
+    // manual staff entry shouldn't be able to create a second record for a
+    // patient who already exists.
+    return await findOrCreatePatient(ctx, {
       clinicId: staffUser.clinicId,
       name,
-      ...(trimmedEmail ? { email: trimmedEmail } : {}),
       phone,
-      createdAt: Date.now(),
+      email: email?.trim() || undefined,
     })
-    return patientId
   },
 })

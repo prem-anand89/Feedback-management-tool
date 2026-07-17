@@ -12,6 +12,10 @@ const SheetContext = React.createContext<SheetContextType | undefined>(undefined
 function Sheet({ children, open = false, onOpenChange }: { children: React.ReactNode; open?: boolean; onOpenChange?: (open: boolean) => void }) {
   const [isOpen, setIsOpen] = React.useState(open)
 
+  React.useEffect(() => {
+    setIsOpen(open)
+  }, [open])
+
   const handleOpenChange = (newOpen: boolean) => {
     setIsOpen(newOpen)
     onOpenChange?.(newOpen)
