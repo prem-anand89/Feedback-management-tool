@@ -84,7 +84,7 @@ function AnalyticsPage() {
       <div className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
             <p className="text-muted-foreground">Reputation and feedback health.</p>
           </div>
           <div className="inline-flex rounded-xl border border-border bg-card p-1">
@@ -106,7 +106,7 @@ function AnalyticsPage() {
           {metrics.map((m) => (
             <Card key={m.label}>
               <CardContent className="p-5">
-                <div className="text-2xl font-bold">{m.value}</div>
+                <div className="text-2xl font-semibold">{m.value}</div>
                 <p className="text-xs text-muted-foreground">{m.label}</p>
               </CardContent>
             </Card>

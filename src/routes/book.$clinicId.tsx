@@ -134,7 +134,7 @@ function BookAppointmentPage() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
             <CheckCircle2 className="h-7 w-7 text-primary" />
           </div>
-          <h1 className="mb-2 text-xl font-bold">Request Received</h1>
+          <h1 className="mb-2 text-xl font-semibold">Request Received</h1>
           <p className="text-sm text-muted-foreground">
             Thank you. Your appointment request has been received. We will contact you shortly to confirm your appointment.
           </p>
@@ -146,7 +146,7 @@ function BookAppointmentPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
-        <h1 className="mb-6 text-2xl font-bold text-primary">Make an Appointment</h1>
+        <h1 className="mb-6 text-2xl font-semibold text-primary">Make an Appointment</h1>
         <form onSubmit={handleSubmit} className="space-y-3">
           <input
             placeholder="Patient Name *"

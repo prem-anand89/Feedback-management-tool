@@ -18,7 +18,7 @@ function FeedbackPage() {
     <StaffLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Feedback Inbox</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Feedback Inbox</h1>
           <p className="text-muted-foreground">View and manage patient feedback responses</p>
         </div>
 

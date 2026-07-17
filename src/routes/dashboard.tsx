@@ -58,7 +58,7 @@ function MetricCard({
         <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-xl ${metricIconClass[color]}`}>
           <Icon className="h-4 w-4" />
         </div>
-        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-2xl font-semibold">{value}</div>
         <p className="text-xs text-muted-foreground">{label}</p>
         {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
       </CardContent>
@@ -146,7 +146,7 @@ function DashboardPage() {
     <StaffLayout>
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">Overview of feedback, complaints, and reputation this week.</p>
         </div>
 

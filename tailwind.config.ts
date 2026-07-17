@@ -43,8 +43,8 @@ const config: Config = {
         lg: '0 14px 36px -10px rgba(45, 35, 45, 0.16)',
       },
       fontFamily: {
-        sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'sans-serif'],
-        display: ['"Nunito"', 'ui-rounded', '"Plus Jakarta Sans"', 'sans-serif'],
+        sans: ['"Hanken Grotesk"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'sans-serif'],
+        display: ['"Nunito"', 'ui-rounded', '"Hanken Grotesk"', 'sans-serif'],
       },
     },
   },
