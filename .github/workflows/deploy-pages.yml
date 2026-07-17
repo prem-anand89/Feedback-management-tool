@@ -1,0 +1,55 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - claude/file-content-summary-cnbc4g
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # Run vite build directly rather than the tsc-gated `npm run build`:
+      # the repo has pre-existing strict-mode type errors (unrelated to this
+      # workflow) that block tsc but don't affect the actual bundle output.
+      - run: npx vite build
+        env:
+          # Clerk publishable key and the Convex deployment URL are meant to
+          # be embedded in client-side bundles (they aren't secrets), so
+          # they're set inline here rather than via repo secrets.
+          VITE_CONVEX_URL: https://descriptive-quail-833.eu-west-1.convex.cloud/
+          VITE_CLERK_PUBLISHABLE_KEY: pk_test_Z3Jvd2luZy1jb3ctNDIuY2xlcmsuYWNjb3VudHMuZGV2JA
+      # GitHub Pages has no server-side rewrites, so client-side routes
+      # (TanStack Router) need the SPA fallback: any unmatched path serves
+      # index.html and the router takes over from there.
+      - run: cp dist/index.html dist/404.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

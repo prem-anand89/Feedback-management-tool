@@ -7,7 +7,9 @@ import { ConvexProviderWithClerk } from 'convex/react-clerk'
 import { routeTree } from './routeTree.gen'
 import './index.css'
 
-const router = createRouter({ routeTree })
+// Matches Vite's `base` config, so the same build works whether it's served
+// from the domain root or a GitHub Pages project path (/<repo-name>/).
+const router = createRouter({ routeTree, basepath: import.meta.env.BASE_URL })
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL)
 
 declare module '@tanstack/react-router' {
