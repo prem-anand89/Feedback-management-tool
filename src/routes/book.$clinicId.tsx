@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { CheckCircle2, AlertCircle } from 'lucide-react'
+import { IconBadge } from '@/components/ui/icon-badge'
 
 const fieldClass =
   'w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50 placeholder:text-muted-foreground'
@@ -131,9 +132,7 @@ function BookAppointmentPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-4">
         <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-            <CheckCircle2 className="h-7 w-7 text-primary" />
-          </div>
+          <IconBadge icon={CheckCircle2} size="lg" colorClassName="bg-primary/10 text-primary" className="mx-auto mb-4" />
           <h1 className="mb-2 text-xl font-semibold">Request Received</h1>
           <p className="text-sm text-muted-foreground">
             Thank you. Your appointment request has been received. We will contact you shortly to confirm your appointment.

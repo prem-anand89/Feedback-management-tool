@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Phone, Plus, Stethoscope, Calendar, CalendarClock, MessageSquare, Star, XCircle } from 'lucide-react'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+import { IconBadge } from '@/components/ui/icon-badge'
 
 const inputClass =
   'w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50'
@@ -319,9 +320,7 @@ function PatientsPage() {
                       const Icon = entry.icon
                       return (
                         <div key={entry.id} className="flex gap-3 border-b border-border py-3 last:border-0">
-                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${timelineIconClass[entry.color]}`}>
-                            <Icon className="h-4 w-4" />
-                          </div>
+                          <IconBadge icon={Icon} size="xs" colorClassName={timelineIconClass[entry.color]} />
                           <div className="min-w-0 flex-1">
                             <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{entry.kind}</p>
                             <p className="text-sm font-medium">{entry.title}</p>
@@ -352,9 +351,7 @@ function PatientsPage() {
           ) : (
             <Card className="md:col-span-2">
               <CardContent className="flex h-full min-h-48 flex-col items-center justify-center gap-2 py-10 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
-                  <Stethoscope className="h-6 w-6 text-muted-foreground" />
-                </div>
+                <IconBadge icon={Stethoscope} size="md" />
                 <p className="text-sm text-muted-foreground">Select a patient to view their timeline.</p>
               </CardContent>
             </Card>
