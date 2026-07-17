@@ -3,7 +3,7 @@ import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { MessageSquare, Clock, Star, Globe, AlertCircle, CheckCircle } from 'lucide-react'
+import { MessageSquare, Clock, Star, Globe, AlertCircle, CheckCircle, CalendarClock } from 'lucide-react'
 import { useQuery, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 
@@ -74,7 +74,17 @@ function DashboardPage() {
   const feedbackResponses = useQuery(api.feedback.listFeedbackResponses, staffUser ? {} : 'skip') ?? []
   const complaints = useQuery(api.complaints.listComplaints, staffUser ? {} : 'skip') ?? []
   const appointments = useQuery(api.appointments.listAppointments, staffUser ? {} : 'skip') ?? []
+  const upcomingAppointments = useQuery(api.appointments.listUpcomingAppointments, staffUser ? {} : 'skip') ?? []
+  const patients = useQuery(api.patients.listPatients, staffUser ? {} : 'skip') ?? []
+  const staffList = useQuery(api.clinics.listStaff, staffUser ? {} : 'skip') ?? []
   const reviewStats = useQuery(api.reviews.getReviewStats, staffUser ? {} : 'skip')
+
+  const patientName = (id: string) => patients.find((p) => p._id === id)?.name ?? 'Unknown patient'
+  const therapistName = (id: string) => staffList.find((s) => s._id === id)?.name ?? 'Unassigned'
+
+  const todaysAppointments = upcomingAppointments
+    .filter((a) => new Date(a.scheduledAt).toDateString() === new Date().toDateString())
+    .sort((a, b) => a.scheduledAt - b.scheduledAt)
 
   const todayFeedback = feedbackRequests.filter((f) => {
     const today = new Date()
@@ -149,6 +159,42 @@ function DashboardPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">Overview of feedback, complaints, and reputation this week.</p>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <CalendarClock className="h-4 w-4 text-secondary" />
+              Today's Appointments
+              {todaysAppointments.length > 0 && (
+                <span className="rounded-full bg-secondary/15 px-2 py-0.5 text-xs font-semibold text-secondary">
+                  {todaysAppointments.length}
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {todaysAppointments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No appointments scheduled for today.</p>
+            ) : (
+              <div className="space-y-1">
+                {todaysAppointments.map((appt) => (
+                  <div key={appt._id} className="flex items-center gap-3 border-b border-border py-3 last:border-0">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-chipBlue text-chipBlue-foreground">
+                      <Clock className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{patientName(appt.patientId)}</p>
+                      <p className="text-xs text-muted-foreground">{therapistName(appt.therapistId)}</p>
+                    </div>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                      {new Date(appt.scheduledAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <MetricCard icon={MessageSquare} color="blue" value={todayFeedback} label="Today's Feedback" />
