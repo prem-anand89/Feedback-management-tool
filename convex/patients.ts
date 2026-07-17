@@ -4,13 +4,14 @@ import { Id } from './_generated/dataModel'
 import { requireStaffUser } from './lib/auth'
 
 export const listPatients = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { includeArchived: v.optional(v.boolean()) },
+  handler: async (ctx, { includeArchived }) => {
     const staffUser = await requireStaffUser(ctx)
-    return await ctx.db
+    const patients = await ctx.db
       .query('patients')
       .withIndex('by_clinic', (q) => q.eq('clinicId', staffUser.clinicId))
       .collect()
+    return includeArchived ? patients : patients.filter((p) => !p.archivedAt)
   },
 })
 
@@ -74,5 +75,31 @@ export const createPatient = mutation({
       phone,
       email: email?.trim() || undefined,
     })
+  },
+})
+
+export const archivePatient = mutation({
+  args: { patientId: v.id('patients') },
+  handler: async (ctx, { patientId }) => {
+    const staffUser = await requireStaffUser(ctx)
+    const patient = await ctx.db.get(patientId)
+    if (!patient || patient.clinicId !== staffUser.clinicId) {
+      throw new Error('Patient not found')
+    }
+    await ctx.db.patch(patientId, { archivedAt: Date.now() })
+    return patientId
+  },
+})
+
+export const unarchivePatient = mutation({
+  args: { patientId: v.id('patients') },
+  handler: async (ctx, { patientId }) => {
+    const staffUser = await requireStaffUser(ctx)
+    const patient = await ctx.db.get(patientId)
+    if (!patient || patient.clinicId !== staffUser.clinicId) {
+      throw new Error('Patient not found')
+    }
+    await ctx.db.patch(patientId, { archivedAt: undefined })
+    return patientId
   },
 })
