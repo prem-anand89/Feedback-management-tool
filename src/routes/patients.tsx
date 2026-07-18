@@ -16,6 +16,7 @@ import {
   Archive,
   ArchiveRestore,
   Upload,
+  Download,
   Search,
   Pencil,
   AlertTriangle,
@@ -27,6 +28,7 @@ import { api } from '../../convex/_generated/api'
 import { IconBadge } from '@/components/ui/icon-badge'
 import { ScheduleAppointmentForm } from '@/components/appointments/schedule-appointment-form'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { downloadCsv } from '@/lib/csv'
 
 const PAGE_SIZE = 15
 type SortBy = 'recent' | 'name' | 'lastVisit'
@@ -162,6 +164,21 @@ function PatientsPage() {
 
   const totalPages = Math.max(1, Math.ceil(filteredPatients.length / PAGE_SIZE))
   const pagePatients = filteredPatients.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+
+  // Exports the full filtered roster (respects search/show-archived, not
+  // just the current page) — one row per patient, not per visit.
+  const handleExportPatients = () => {
+    const rows = filteredPatients.map((p) => ({
+      name: p.name,
+      phone: p.phone,
+      email: p.email ?? '',
+      status: p.archivedAt ? 'archived' : 'active',
+      last_visit: lastVisitByPatient.has(p._id) ? new Date(lastVisitByPatient.get(p._id)!).toISOString().slice(0, 10) : '',
+      next_appointment: nextApptByPatient.has(p._id) ? new Date(nextApptByPatient.get(p._id)!.scheduledAt).toISOString().slice(0, 10) : '',
+      notes: p.notes ?? '',
+    }))
+    downloadCsv(`patients-export-${new Date().toISOString().slice(0, 10)}.csv`, rows)
+  }
   const patientVisits = selected ? visits.filter((v) => v.patientId === selected._id) : []
   const patientAppointments = useQuery(
     api.appointments.listAppointmentsForPatient,
@@ -420,6 +437,10 @@ function PatientsPage() {
                 </Link>
               </Button>
             )}
+            <Button variant="outline" onClick={handleExportPatients} disabled={filteredPatients.length === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Export CSV
+            </Button>
             <Button onClick={() => setShowAddPatient(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Add Patient

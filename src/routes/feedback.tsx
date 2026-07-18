@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge, type BadgeVariant } from '@/components/ui/badge'
 import { BoardView, type ComplaintStatus } from '@/components/feedback/board-view'
-import { Star } from 'lucide-react'
+import { Star, Download } from 'lucide-react'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+import { downloadCsv } from '@/lib/csv'
 
 const STATUSES: ComplaintStatus[] = ['pending', 'in-progress', 'resolved', 'closed']
 
@@ -55,6 +56,27 @@ function FeedbackPage() {
     : []
 
   const excerpt = (feedbackResponseId: string) => responses.find((f) => f._id === feedbackResponseId)?.comments || null
+
+  // Exports exactly what's currently visible (respects the "Complaints
+  // only" filter) — one row per feedback response, complaint columns blank
+  // when the response never became a complaint.
+  const handleExport = () => {
+    const rows = visibleResponses.map((r) => {
+      const patient = patients.find((p) => p._id === r.patientId)
+      const complaint = complaintByResponseId.get(r._id)
+      return {
+        date: new Date(r.submittedAt).toISOString().slice(0, 10),
+        patient_name: patient?.name ?? '',
+        patient_phone: patient?.phone ?? '',
+        clinician: therapistName(r.therapistId),
+        rating: r.rating,
+        comments: r.comments,
+        complaint_status: complaint?.status ?? '',
+        complaint_priority: complaint?.priority ?? '',
+      }
+    })
+    downloadCsv(`feedback-export-${new Date().toISOString().slice(0, 10)}.csv`, rows)
+  }
 
   const handleUpdateStatus = async (newStatus: ComplaintStatus) => {
     if (!selectedComplaint) return
@@ -107,6 +129,10 @@ function FeedbackPage() {
               <input type="checkbox" checked={complaintsOnly} onChange={(e) => setComplaintsOnly(e.target.checked)} />
               Complaints only
             </label>
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={visibleResponses.length === 0}>
+              <Download className="mr-2 h-3.5 w-3.5" />
+              Export CSV
+            </Button>
             <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'list' | 'board')}>
               <TabsList>
                 <TabsTrigger value="list">List</TabsTrigger>
