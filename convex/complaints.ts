@@ -42,7 +42,7 @@ export const createComplaintFromFeedback = internalAction({
 
     const clinic = await ctx.runQuery(internal.clinics.getClinic, { clinicId })
     const staffUsers = await ctx.runQuery(internal.clinics.listStaffInternal, { clinicId })
-    const ownerOrTherapist = staffUsers.find((s) => s.role === 'owner') || staffUsers[0]
+    const ownerOrTherapist = staffUsers.find((s) => s.userId === clinic?.ownerUserId) || staffUsers[0]
 
     if (clinic && ownerOrTherapist) {
       await ctx.scheduler.runAfter(0, internal.emails.notifyComplaintCreated, {

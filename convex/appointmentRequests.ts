@@ -24,9 +24,11 @@ export const getPublicClinicBookingInfo = query({
       .query('staffUsers')
       .withIndex('by_clinic', (q) => q.eq('clinicId', clinicId))
       .collect()
-    // 'owner' included alongside 'therapist' — a solo-owner clinic (the
-    // common case at signup, since /setup only ever creates an 'owner')
-    // would otherwise never see a provider option here at all.
+    // 'owner' included alongside 'therapist' for legacy staffUsers rows
+    // written before clinic ownership was decoupled from job title (see
+    // requireOwner in lib/auth.ts) — new clinics' owners get role
+    // 'therapist' directly, but this keeps older owner rows showing up as a
+    // provider option instead of disappearing from booking.
     const therapists = staff
       .filter((s) => s.role === 'therapist' || s.role === 'owner')
       .map((s) => ({ _id: s._id, name: s.name }))

@@ -18,8 +18,15 @@ export async function requireStaffUser(ctx: QueryCtx | MutationCtx): Promise<Doc
   return staffUser
 }
 
+// Ownership is a permission, not a job title — it's whoever created the
+// clinic (clinics.ownerUserId), independent of the staffUsers.role field
+// they display as (Clinician/Therapist, Receptionist, Admin, Staff). This
+// lets the owner's displayed role read the same as everyone else's.
 export async function requireOwner(ctx: QueryCtx | MutationCtx): Promise<Doc<'staffUsers'>> {
   const staffUser = await requireStaffUser(ctx)
-  if (staffUser.role !== 'owner') throw new Error('Only clinic owners can perform this action')
+  const clinic = await ctx.db.get(staffUser.clinicId)
+  if (!clinic || clinic.ownerUserId !== staffUser.userId) {
+    throw new Error('Only the clinic owner can perform this action')
+  }
   return staffUser
 }

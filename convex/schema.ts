@@ -41,7 +41,13 @@ export default defineSchema({
     // WhatsApp reminders to this person (appointment reminders) use this
     // when set; falls back to an email reminder otherwise.
     phone: v.optional(v.string()),
-    role: v.union(v.literal('owner'), v.literal('therapist'), v.literal('receptionist')),
+    // 'owner' is a legacy value kept only so existing rows written before
+    // clinic ownership was decoupled from job title (see requireOwner in
+    // lib/auth.ts, which now checks clinics.ownerUserId instead) still
+    // validate — never written by new code. Every staff member, including
+    // the clinic owner, gets a real job-title role; ownership is a separate,
+    // invisible permission derived from clinics.ownerUserId.
+    role: v.union(v.literal('owner'), v.literal('therapist'), v.literal('receptionist'), v.literal('admin'), v.literal('staff')),
     createdAt: v.number(),
   })
     .index('by_clinic', ['clinicId'])
@@ -57,6 +63,9 @@ export default defineSchema({
     // is preserved; archived patients are just excluded from the default
     // roster view. Never filtered out of dedup lookups (findOrCreatePatient).
     archivedAt: v.optional(v.number()),
+    // Free-text staff notes, e.g. "chronic back," "prefers evenings" —
+    // shown on the patient's timeline, not visible to the patient.
+    notes: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index('by_clinic', ['clinicId'])
