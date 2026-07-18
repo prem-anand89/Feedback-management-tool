@@ -56,6 +56,16 @@ export default defineSchema({
     // the clinic owner, gets a real job-title role; ownership is a separate,
     // invisible permission derived from clinics.ownerUserId.
     role: v.union(v.literal('owner'), v.literal('therapist'), v.literal('receptionist'), v.literal('admin'), v.literal('staff')),
+    // Per-clinician booking availability, one entry per weekday this
+    // clinician offers slots (0 = Sunday … 6 = Saturday); a weekday with no
+    // entry means they're not bookable that day. When the whole field is
+    // unset, the clinician falls back to the clinic-wide bookingTimeSlots on
+    // every open day (backward compatible with clinics set up before this
+    // existed). Slot strings use the same format as bookingTimeSlots, e.g.
+    // "09:00 AM".
+    weeklyAvailability: v.optional(
+      v.array(v.object({ day: v.number(), slots: v.array(v.string()) })),
+    ),
     createdAt: v.number(),
   })
     .index('by_clinic', ['clinicId'])

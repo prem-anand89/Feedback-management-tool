@@ -29,9 +29,13 @@ export const getPublicClinicBookingInfo = query({
     // requireOwner in lib/auth.ts) — new clinics' owners get role
     // 'therapist' directly, but this keeps older owner rows showing up as a
     // provider option instead of disappearing from booking.
+    // weeklyAvailability included so the form can show only the times a
+    // chosen clinician actually offers for the chosen day (and the union of
+    // all clinicians' times when the patient has no preference). null means
+    // "no custom availability" — fall back to the clinic-wide slots.
     const therapists = staff
       .filter((s) => s.role === 'therapist' || s.role === 'owner')
-      .map((s) => ({ _id: s._id, name: s.name }))
+      .map((s) => ({ _id: s._id, name: s.name, weeklyAvailability: s.weeklyAvailability ?? null }))
 
     return {
       name: clinic.name,
