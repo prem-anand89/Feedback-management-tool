@@ -8,6 +8,7 @@ import { Phone, Plus, Stethoscope, Calendar, CalendarClock, MessageCircle, Star,
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { IconBadge } from '@/components/ui/icon-badge'
+import { ScheduleAppointmentForm } from '@/components/appointments/schedule-appointment-form'
 
 const inputClass =
   'w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50'
@@ -48,7 +49,6 @@ function PatientsPage() {
   const unarchivePatient = useMutation(api.patients.unarchivePatient)
   const createVisit = useMutation(api.visits.createVisit)
   const completeVisit = useMutation(api.visits.completeVisit)
-  const createAppointment = useMutation(api.appointments.createAppointment)
   const completeAppointment = useMutation(api.appointments.completeAppointment)
   const cancelAppointment = useMutation(api.appointments.cancelAppointment)
 
@@ -62,12 +62,8 @@ function PatientsPage() {
   const [newPatientEmail, setNewPatientEmail] = useState('')
   const [newPatientPhone, setNewPatientPhone] = useState('')
   const [visitService, setVisitService] = useState('')
-  const [apptDateTime, setApptDateTime] = useState('')
-  const [apptService, setApptService] = useState('')
-  const [apptTherapistId, setApptTherapistId] = useState('')
   const [isLoadingPatient, setIsLoadingPatient] = useState(false)
   const [isLoadingVisit, setIsLoadingVisit] = useState(false)
-  const [isLoadingAppt, setIsLoadingAppt] = useState(false)
   const [error, setError] = useState('')
   const [copiedRequestId, setCopiedRequestId] = useState<string | null>(null)
 
@@ -275,33 +271,6 @@ function PatientsPage() {
       await unarchivePatient({ patientId: patientId as any })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to unarchive patient')
-    }
-  }
-
-  const handleScheduleAppointment = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selected || !apptDateTime || !apptTherapistId) {
-      setError('Date/time and therapist are required')
-      return
-    }
-
-    setIsLoadingAppt(true)
-    setError('')
-    try {
-      await createAppointment({
-        patientId: selected._id,
-        therapistId: apptTherapistId as any,
-        scheduledAt: new Date(apptDateTime).getTime(),
-        serviceContext: apptService || undefined,
-      })
-      setApptDateTime('')
-      setApptService('')
-      setApptTherapistId('')
-      setShowScheduleAppointment(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to schedule appointment')
-    } finally {
-      setIsLoadingAppt(false)
     }
   }
 
@@ -536,66 +505,13 @@ function PatientsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleScheduleAppointment} className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Date &amp; Time</label>
-                    <input
-                      type="datetime-local"
-                      value={apptDateTime}
-                      onChange={(e) => setApptDateTime(e.target.value)}
-                      disabled={isLoadingAppt}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Service</label>
-                    <select
-                      value={apptService}
-                      onChange={(e) => setApptService(e.target.value)}
-                      disabled={isLoadingAppt}
-                      className={inputClass}
-                    >
-                      <option value="">Select a service…</option>
-                      {services.map((service) => (
-                        <option key={service} value={service}>
-                          {service}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Therapist</label>
-                    <select
-                      value={apptTherapistId}
-                      onChange={(e) => setApptTherapistId(e.target.value)}
-                      disabled={isLoadingAppt}
-                      className={inputClass}
-                    >
-                      <option value="">Select a therapist…</option>
-                      {staffList.map((staff) => (
-                        <option key={staff._id} value={staff._id}>
-                          {staff.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                {error && <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={isLoadingAppt}>
-                    {isLoadingAppt ? 'Scheduling...' : 'Schedule Appointment'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowScheduleAppointment(false)}
-                    disabled={isLoadingAppt}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </form>
+              <ScheduleAppointmentForm
+                patientId={selected._id}
+                services={services}
+                staffList={staffList}
+                onDone={() => setShowScheduleAppointment(false)}
+                onCancel={() => setShowScheduleAppointment(false)}
+              />
             </CardContent>
           </Card>
         )}
