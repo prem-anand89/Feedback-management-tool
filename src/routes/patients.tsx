@@ -4,7 +4,7 @@ import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Phone, Plus, Stethoscope, Calendar, CalendarClock, MessageSquare, Star, XCircle, Archive, ArchiveRestore, Upload } from 'lucide-react'
+import { Phone, Plus, Stethoscope, Calendar, CalendarClock, MessageCircle, Star, XCircle, Archive, ArchiveRestore, Upload } from 'lucide-react'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { IconBadge } from '@/components/ui/icon-badge'
@@ -164,7 +164,7 @@ function PatientsPage() {
             id: `feedback-request-${r._id}`,
             timestamp: r.sentAt,
             kind: 'feedback',
-            icon: MessageSquare,
+            icon: MessageCircle,
             color: 'amber' as const,
             title: r.status === 'reminded' ? 'Feedback reminder sent' : 'Feedback request pending',
             subtitle: 'Not yet responded — share the link directly if WhatsApp auto-send isn\'t set up',
@@ -185,7 +185,7 @@ function PatientsPage() {
             id: `feedback-${f._id}`,
             timestamp: f.submittedAt,
             kind: 'feedback',
-            icon: MessageSquare,
+            icon: MessageCircle,
             color: 'green' as const,
             title: `${f.rating}★ feedback submitted`,
             subtitle: f.comments || undefined,
