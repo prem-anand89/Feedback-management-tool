@@ -34,21 +34,20 @@ function MetricCard({
   color,
   value,
   label,
-  sub,
 }: {
   icon: any
   color: keyof typeof metricIconClass
   value: string | number
   label: string
-  sub?: string
 }) {
   return (
     <Card>
-      <CardContent className="p-5">
-        <IconBadge icon={Icon} size="sm" colorClassName={metricIconClass[color]} className="mb-3" />
-        <div className="text-2xl font-semibold">{value}</div>
-        <p className="text-xs text-muted-foreground">{label}</p>
-        {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
+      <CardContent className="flex items-center gap-3 p-4">
+        <IconBadge icon={Icon} size="sm" colorClassName={metricIconClass[color]} />
+        <div className="min-w-0">
+          <div className="text-xl font-semibold leading-tight">{value}</div>
+          <p className="truncate text-xs text-muted-foreground">{label}</p>
+        </div>
       </CardContent>
     </Card>
   )
@@ -94,7 +93,6 @@ function DashboardPage() {
     ? (feedbackResponses.reduce((sum, f) => sum + f.rating, 0) / feedbackResponses.length).toFixed(1)
     : '0'
 
-  const complaintCount = complaints.filter((c) => c.status === 'pending' || c.status === 'in-progress').length
   const resolved = complaints.filter((c) => c.status === 'resolved').length
 
   const recentActivity = [
@@ -221,14 +219,11 @@ function DashboardPage() {
           </Card>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard icon={CalendarClock} color="blue" value={todaysAppointments.length} label="Today's Appointments" />
-          <MetricCard icon={MessageCircleMore} color="purple" value={pendingRequests.length} label="Pending Requests" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <MetricCard icon={MessageCircle} color="blue" value={todayFeedback} label="Today's Feedback" />
           <MetricCard icon={Clock} color="amber" value={pendingFeedback} label="Pending Feedback" />
           <MetricCard icon={Star} color="green" value={`${avgRating} / 5`} label="Average Rating" />
           <MetricCard icon={Globe} color="purple" value={reviewStats?.clicked ?? 0} label="Google Reviews (mo.)" />
-          <MetricCard icon={AlertCircle} color="pink" value={complaintCount} label="Open Complaints" />
           <MetricCard icon={CheckCircle} color="green" value={resolved} label="Resolved Issues" />
         </div>
 
