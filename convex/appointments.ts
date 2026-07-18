@@ -71,7 +71,7 @@ async function scheduleReminders(
     clinicId: args.clinicId,
     patientId: args.patientId,
   })
-  const therapistReminderJobId = await ctx.scheduler.runAfter(delay, internal.emails.sendTherapistAppointmentReminder, {
+  const therapistReminderJobId = await ctx.scheduler.runAfter(delay, internal.whatsapp.sendTherapistReminder, {
     appointmentId: args.appointmentId,
     clinicId: args.clinicId,
     patientId: args.patientId,

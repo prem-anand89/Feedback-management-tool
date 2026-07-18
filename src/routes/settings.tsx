@@ -39,6 +39,7 @@ function SettingsPage() {
   const updateClinicSettings = useMutation(api.clinics.updateClinicSettings)
   const addProvider = useMutation(api.clinics.addProvider)
   const removeStaffMember = useMutation(api.clinics.removeStaffMember)
+  const updateStaffMember = useMutation(api.clinics.updateStaffMember)
 
   const [settings, setSettings] = useState<ClinicSettings | null>(null)
   const [newService, setNewService] = useState('')
@@ -49,9 +50,17 @@ function SettingsPage() {
 
   const [newProviderName, setNewProviderName] = useState('')
   const [newProviderEmail, setNewProviderEmail] = useState('')
+  const [newProviderPhone, setNewProviderPhone] = useState('')
   const [newProviderRole, setNewProviderRole] = useState<StaffRole>('therapist')
   const [isAddingProvider, setIsAddingProvider] = useState(false)
   const [teamError, setTeamError] = useState('')
+
+  const [editingStaffId, setEditingStaffId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editRole, setEditRole] = useState<StaffRole>('therapist')
+  const [isSavingStaffEdit, setIsSavingStaffEdit] = useState(false)
 
   const isOwner = staffUser?.role === 'owner'
 
@@ -67,10 +76,12 @@ function SettingsPage() {
       await addProvider({
         name: newProviderName.trim(),
         email: newProviderEmail.trim() || undefined,
+        phone: newProviderPhone.trim() || undefined,
         role: newProviderRole,
       })
       setNewProviderName('')
       setNewProviderEmail('')
+      setNewProviderPhone('')
       setNewProviderRole('therapist')
     } catch (err) {
       setTeamError(err instanceof Error ? err.message : 'Failed to add provider')
@@ -88,6 +99,39 @@ function SettingsPage() {
       await removeStaffMember({ staffId: staffId as any })
     } catch (err) {
       setTeamError(err instanceof Error ? err.message : 'Failed to remove')
+    }
+  }
+
+  const startEditStaff = (member: { _id: string; name: string; email: string; phone?: string; role: StaffRole }) => {
+    setEditingStaffId(member._id)
+    setEditName(member.name)
+    setEditEmail(member.email)
+    setEditPhone(member.phone ?? '')
+    setEditRole(member.role)
+    setTeamError('')
+  }
+
+  const handleSaveStaffEdit = async () => {
+    if (!editingStaffId) return
+    if (!editName.trim()) {
+      setTeamError('Name is required')
+      return
+    }
+    setIsSavingStaffEdit(true)
+    setTeamError('')
+    try {
+      await updateStaffMember({
+        staffId: editingStaffId as any,
+        name: editName.trim(),
+        email: editEmail.trim(),
+        phone: editPhone.trim(),
+        role: editRole,
+      })
+      setEditingStaffId(null)
+    } catch (err) {
+      setTeamError(err instanceof Error ? err.message : 'Failed to save changes')
+    } finally {
+      setIsSavingStaffEdit(false)
     }
   }
 
@@ -590,7 +634,8 @@ function SettingsPage() {
                   <CardDescription>
                     Providers appear in scheduling and as options on your public booking form. Adding someone here
                     doesn't give them dashboard access — that requires them to sign up separately and be linked to
-                    your clinic (not available yet).
+                    your clinic (not available yet). Add a phone number to send appointment reminders to a
+                    provider's WhatsApp instead of email.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -600,6 +645,57 @@ function SettingsPage() {
                     <div className="space-y-2">
                       {staffList.map((member) => {
                         const hasLogin = !member.userId.startsWith('provider_')
+                        if (isOwner && editingStaffId === member._id) {
+                          return (
+                            <div key={member._id} className="space-y-2 rounded-xl border border-primary bg-primary/5 p-3">
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                <input
+                                  placeholder="Name"
+                                  value={editName}
+                                  onChange={(e) => setEditName(e.target.value)}
+                                  disabled={isSavingStaffEdit}
+                                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                                />
+                                <select
+                                  value={editRole}
+                                  onChange={(e) => setEditRole(e.target.value as StaffRole)}
+                                  disabled={isSavingStaffEdit}
+                                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                                >
+                                  {STAFF_ROLES.map((role) => (
+                                    <option key={role} value={role} className="capitalize">
+                                      {role}
+                                    </option>
+                                  ))}
+                                </select>
+                                <input
+                                  type="email"
+                                  placeholder="Email"
+                                  value={editEmail}
+                                  onChange={(e) => setEditEmail(e.target.value)}
+                                  disabled={isSavingStaffEdit}
+                                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                                />
+                                <input
+                                  type="tel"
+                                  placeholder="Phone (for WhatsApp reminders)"
+                                  value={editPhone}
+                                  onChange={(e) => setEditPhone(e.target.value)}
+                                  disabled={isSavingStaffEdit}
+                                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button size="sm" onClick={handleSaveStaffEdit} disabled={isSavingStaffEdit}>
+                                  {isSavingStaffEdit ? 'Saving...' : 'Save'}
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => setEditingStaffId(null)} disabled={isSavingStaffEdit}>
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          )
+                        }
                         return (
                           <div key={member._id} className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
                             <div>
@@ -610,23 +706,34 @@ function SettingsPage() {
                               <p className="text-xs capitalize text-muted-foreground">
                                 {member.role}
                                 {member.email && <> · {member.email}</>}
+                                {member.phone && <> · {member.phone}</>}
                                 {!hasLogin && <> · No dashboard login</>}
                               </p>
                             </div>
-                            {isOwner && member._id !== staffUser?._id && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => handleRemoveStaff(member._id, member.name)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
+                            {isOwner && (
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="ghost" onClick={() => startEditStaff(member)}>
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                {member._id !== staffUser?._id && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => handleRemoveStaff(member._id, member.name)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </div>
                             )}
                           </div>
                         )
                       })}
                     </div>
+                  )}
+                  {teamError && (
+                    <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{teamError}</div>
                   )}
                 </CardContent>
               </Card>
@@ -651,6 +758,14 @@ function SettingsPage() {
                         placeholder="Email (optional)"
                         value={newProviderEmail}
                         onChange={(e) => setNewProviderEmail(e.target.value)}
+                        disabled={isAddingProvider}
+                        className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                      />
+                      <input
+                        type="tel"
+                        placeholder="Phone (optional, for WhatsApp reminders)"
+                        value={newProviderPhone}
+                        onChange={(e) => setNewProviderPhone(e.target.value)}
                         disabled={isAddingProvider}
                         className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                       />

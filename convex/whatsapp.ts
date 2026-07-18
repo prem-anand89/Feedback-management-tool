@@ -159,6 +159,68 @@ export const sendAppointmentReminder = internalAction({
   },
 })
 
+// Companion reminder to the assigned therapist/doctor. Prefers WhatsApp
+// (same Cloud API and credentials as the patient reminder above) when the
+// therapist has a phone on file; falls back to
+// emails.sendTherapistAppointmentReminder otherwise, or if the WhatsApp
+// send itself fails (e.g. credentials not configured yet) — so a therapist
+// still gets *a* reminder either way, not silence.
+export const sendTherapistReminder = internalAction({
+  args: {
+    appointmentId: v.id('appointments'),
+    clinicId: v.id('clinics'),
+    patientId: v.id('patients'),
+    therapistId: v.id('staffUsers'),
+  },
+  handler: async (ctx, { appointmentId, clinicId, patientId, therapistId }): Promise<{ success: boolean; appointmentId?: string; error?: string }> => {
+    const therapist = await ctx.runQuery(internal.clinics.getStaffUserInternal, { staffId: therapistId })
+
+    if (therapist?.phone) {
+      const appointment = await ctx.runQuery(internal.appointments.getAppointmentInternal, { appointmentId })
+      if (!appointment || appointment.status !== 'scheduled') {
+        return { success: false, error: 'Appointment no longer scheduled' }
+      }
+      const patient = await ctx.runQuery(internal.patients.getPatientInternal, { patientId })
+      const clinic = await ctx.runQuery(internal.clinics.getClinic, { clinicId })
+
+      if (patient && clinic) {
+        const when = new Date(appointment.scheduledAt).toLocaleString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+        })
+        const message = `Hi ${therapist.name}, reminder: you have an appointment with ${patient.name} (${patient.phone}) at ${clinic.name} on ${when}${appointment.serviceContext ? ` for ${appointment.serviceContext}` : ''}.`
+
+        const accessToken = process.env.WHATSAPP_ACCESS_TOKEN
+        const phoneNumberId = process.env.VITE_WHATSAPP_PHONE_NUMBER_ID
+        const success = await sendWhatsAppMessage(therapist.phone, message, accessToken, phoneNumberId)
+
+        await ctx.runMutation(internal.whatsapp.logAutomation, {
+          clinicId,
+          workflow: 'send_therapist_reminder_whatsapp',
+          entityId: appointmentId,
+          result: success ? 'success' : 'failure',
+          errorMessage: success ? undefined : 'WhatsApp send failed or not configured',
+        })
+
+        if (success) return { success: true, appointmentId }
+      }
+    }
+
+    // No phone on file, or the WhatsApp send above failed/wasn't
+    // configured — fall back to email so the therapist still hears
+    // something rather than nothing.
+    return await ctx.runAction(internal.emails.sendTherapistAppointmentReminder, {
+      appointmentId,
+      clinicId,
+      patientId,
+      therapistId,
+    })
+  },
+})
+
 export const sendReminder = internalAction({
   args: {
     feedbackRequestId: v.id('feedbackRequests'),

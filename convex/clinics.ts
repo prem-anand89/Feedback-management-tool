@@ -170,9 +170,10 @@ export const addProvider = mutation({
   args: {
     name: v.string(),
     email: v.optional(v.string()),
+    phone: v.optional(v.string()),
     role: v.union(v.literal('owner'), v.literal('therapist'), v.literal('receptionist')),
   },
-  handler: async (ctx, { name, email, role }) => {
+  handler: async (ctx, { name, email, phone, role }) => {
     const caller = await requireOwner(ctx)
     const trimmedName = name.trim()
     if (!trimmedName) throw new Error('Name is required')
@@ -182,6 +183,7 @@ export const addProvider = mutation({
       userId: generateProviderId(),
       name: trimmedName,
       email: email?.trim() || '',
+      phone: phone?.trim() || undefined,
       role,
       createdAt: Date.now(),
     })
@@ -204,6 +206,40 @@ export const removeStaffMember = mutation({
       throw new Error("You can't remove your own account")
     }
     await ctx.db.delete(staffId)
+    return staffId
+  },
+})
+
+// Owner-only: edits an existing staff/provider row's contact details and
+// role — covers both fixing up a provider added without a phone, and the
+// owner's own row (created at /setup with no phone prompt), since an
+// owner editing their own staffId is allowed here.
+export const updateStaffMember = mutation({
+  args: {
+    staffId: v.id('staffUsers'),
+    name: v.optional(v.string()),
+    email: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    role: v.optional(v.union(v.literal('owner'), v.literal('therapist'), v.literal('receptionist'))),
+  },
+  handler: async (ctx, { staffId, name, email, phone, role }) => {
+    const caller = await requireOwner(ctx)
+    const target = await ctx.db.get(staffId)
+    if (!target || target.clinicId !== caller.clinicId) {
+      throw new Error('Staff member not found')
+    }
+
+    const updates: Record<string, unknown> = {}
+    if (name !== undefined) {
+      const trimmed = name.trim()
+      if (!trimmed) throw new Error('Name is required')
+      updates.name = trimmed
+    }
+    if (email !== undefined) updates.email = email.trim()
+    if (phone !== undefined) updates.phone = phone.trim() || undefined
+    if (role !== undefined) updates.role = role
+
+    await ctx.db.patch(staffId, updates)
     return staffId
   },
 })
