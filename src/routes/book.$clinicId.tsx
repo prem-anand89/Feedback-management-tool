@@ -273,7 +273,7 @@ function BookAppointmentPage() {
 
           {info.therapists.length > 0 && (
             <select value={therapistId} onChange={(e) => setTherapistId(e.target.value)} disabled={submitting} className={fieldClass}>
-              <option value="">Preferred Therapist/Doctor (optional)</option>
+              <option value="">No preference — any available provider</option>
               {info.therapists.map((t: { _id: string; name: string }) => (
                 <option key={t._id} value={t._id}>
                   {t.name}
