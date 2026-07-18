@@ -472,8 +472,8 @@ function SettingsPage() {
                                 {member.name}
                                 {member._id === staffUser?._id && <span className="text-muted-foreground"> (you)</span>}
                               </p>
-                              <p className="text-xs capitalize text-muted-foreground">
-                                {member.role}
+                              <p className="text-xs text-muted-foreground">
+                                <span className="capitalize">{member.role}</span>
                                 {member.email && <> · {member.email}</>}
                                 {member.phone && <> · {member.phone}</>}
                                 {!hasLogin && <> · No dashboard login</>}
