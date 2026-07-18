@@ -3,7 +3,7 @@ import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { MessageCircle, Clock, Star, Globe, AlertCircle, CheckCircle, CalendarClock, MessageCircleMore, CheckCircle2 } from 'lucide-react'
+import { MessageCircle, Clock, AlertCircle, CalendarClock, MessageCircleMore, CheckCircle2 } from 'lucide-react'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { IconBadge } from '@/components/ui/icon-badge'
@@ -64,7 +64,6 @@ function DashboardPage() {
   const pendingRequests = useQuery(api.appointmentRequests.listPendingAppointmentRequests, staffUser ? {} : 'skip') ?? []
   const patients = useQuery(api.patients.listPatients, staffUser ? {} : 'skip') ?? []
   const staffList = useQuery(api.clinics.listStaff, staffUser ? {} : 'skip') ?? []
-  const reviewStats = useQuery(api.reviews.getReviewStats, staffUser ? {} : 'skip')
   const completeAppointment = useMutation(api.appointments.completeAppointment)
 
   const patientName = (id: string) => patients.find((p) => p._id === id)?.name ?? 'Unknown patient'
@@ -88,12 +87,6 @@ function DashboardPage() {
   }).length
 
   const pendingFeedback = feedbackRequests.filter((f) => f.status === 'pending').length
-
-  const avgRating = feedbackResponses.length > 0
-    ? (feedbackResponses.reduce((sum, f) => sum + f.rating, 0) / feedbackResponses.length).toFixed(1)
-    : '0'
-
-  const resolved = complaints.filter((c) => c.status === 'resolved').length
 
   const recentActivity = [
     ...feedbackResponses.map((f) => ({
@@ -219,12 +212,9 @@ function DashboardPage() {
           </Card>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2">
           <MetricCard icon={MessageCircle} color="blue" value={todayFeedback} label="Today's Feedback" />
           <MetricCard icon={Clock} color="amber" value={pendingFeedback} label="Pending Feedback" />
-          <MetricCard icon={Star} color="green" value={`${avgRating} / 5`} label="Average Rating" />
-          <MetricCard icon={Globe} color="purple" value={reviewStats?.clicked ?? 0} label="Google Reviews (mo.)" />
-          <MetricCard icon={CheckCircle} color="green" value={resolved} label="Resolved Issues" />
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
