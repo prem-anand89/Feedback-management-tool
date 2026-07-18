@@ -24,6 +24,8 @@ interface ClinicSettings {
   appointmentReminderLeadHours: string
   appointmentReminderMessage: string
   whatsappNumber: string
+  whatsappAccessToken: string
+  whatsappPhoneNumberId: string
   bookingTimeSlotsText: string
   bookingClosedDays: number[]
   bookingWindowDays: string
@@ -63,6 +65,9 @@ function SettingsPage() {
   // Ownership is who created the clinic (clinics.ownerUserId), not a role —
   // decoupled so the owner's job title displays the same as anyone else's.
   const isOwner = !!clinic && !!staffUser && clinic.ownerUserId === staffUser.userId
+  // Fetched separately, owner-only — getMyClinic strips this field since
+  // every staff member (not just the owner) reads that query.
+  const whatsappCreds = useQuery(api.clinics.getWhatsAppCredentials, isOwner ? {} : 'skip')
 
   const handleAddProvider = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -152,6 +157,10 @@ function SettingsPage() {
           clinic.appointmentReminderMessage ??
           'Hi {patient_name}, this is a reminder of your appointment at {clinic_name} on {appointment_time}.',
         whatsappNumber: clinic.whatsappNumber ?? clinic.contactPhone ?? '',
+        // Patched in by the effect below once the owner-only credentials
+        // query resolves — getMyClinic never returns the raw token.
+        whatsappAccessToken: '',
+        whatsappPhoneNumberId: clinic.whatsappPhoneNumberId ?? '',
         bookingTimeSlotsText: (
           clinic.bookingTimeSlots ?? [
             '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
@@ -163,6 +172,12 @@ function SettingsPage() {
       })
     }
   }, [clinic, settings])
+
+  useEffect(() => {
+    if (whatsappCreds) {
+      setSettings((s) => (s ? { ...s, whatsappAccessToken: whatsappCreds.whatsappAccessToken } : s))
+    }
+  }, [whatsappCreds])
 
   const addService = () => {
     if (!settings) return
@@ -229,6 +244,8 @@ function SettingsPage() {
         appointmentReminderLeadHours: Number(settings.appointmentReminderLeadHours),
         appointmentReminderMessage: settings.appointmentReminderMessage,
         whatsappNumber: settings.whatsappNumber || undefined,
+        whatsappAccessToken: settings.whatsappAccessToken || undefined,
+        whatsappPhoneNumberId: settings.whatsappPhoneNumberId || undefined,
         bookingTimeSlots: settings.bookingTimeSlotsText
           .split(',')
           .map((s) => s.trim())
@@ -701,6 +718,54 @@ function SettingsPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    WhatsApp Business API
+                    {settings.whatsappAccessToken && settings.whatsappPhoneNumberId ? (
+                      <span className="rounded-full bg-chipGreen px-2 py-0.5 text-xs font-medium text-chipGreen-foreground">Connected</span>
+                    ) : (
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Not connected</span>
+                    )}
+                  </CardTitle>
+                  <CardDescription>
+                    Your own Meta WhatsApp Business Cloud API credentials, used to actually send reminders and
+                    feedback requests. This is separate from the WhatsApp Number above — this is what lets the app
+                    send automatically, from your clinic's own number, billed to your own Meta account (not the app
+                    operator's). Until this is set, WhatsApp sends are skipped — appointment reminders to your team
+                    still go out by email, but patient-facing feedback requests and reminders won't send at all.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Phone Number ID</label>
+                    <input
+                      type="text"
+                      value={settings.whatsappPhoneNumberId}
+                      onChange={(e) => isOwner && setSettings({ ...settings, whatsappPhoneNumberId: e.target.value })}
+                      disabled={!isOwner}
+                      placeholder="From Meta's WhatsApp > API Setup page"
+                      className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Access Token</label>
+                    <input
+                      type="password"
+                      value={settings.whatsappAccessToken}
+                      onChange={(e) => isOwner && setSettings({ ...settings, whatsappAccessToken: e.target.value })}
+                      disabled={!isOwner || whatsappCreds === undefined}
+                      placeholder={whatsappCreds === undefined ? 'Loading…' : 'A permanent access token, from a Meta System User'}
+                      className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Kept private — only you (the clinic owner) can view or change this. See the setup guide for how
+                      to create a Meta Business account, add WhatsApp, and generate a permanent token.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="automation" className="space-y-6">
@@ -804,7 +869,10 @@ function SettingsPage() {
           )}
 
           <div className="flex gap-2">
-            <Button onClick={handleSave} disabled={!isOwner || isSaving}>
+            {/* whatsappCreds not yet loaded would mean handleSave sends an
+                empty whatsappAccessToken and wipes out an already-saved
+                one — block Save until it's resolved. */}
+            <Button onClick={handleSave} disabled={!isOwner || isSaving || whatsappCreds === undefined}>
               {isSaving ? 'Saving...' : 'Save Settings'}
             </Button>
           </div>

@@ -12,12 +12,31 @@ export const getClinic = internalQuery({
   },
 })
 
-// Returns the clinic owned by the caller's own staff record.
+// Returns the clinic owned by the caller's own staff record. Every staff
+// member can read this (it powers scheduling, booking config, etc.), so the
+// WhatsApp access token — a real bearer secret, unlike the non-sensitive
+// phone number ID — is stripped here. Only requireOwner callers see it, via
+// getWhatsAppCredentials below.
 export const getMyClinic = query({
   args: {},
   handler: async (ctx) => {
     const staffUser = await requireStaffUser(ctx)
-    return await ctx.db.get(staffUser.clinicId)
+    const clinic = await ctx.db.get(staffUser.clinicId)
+    if (!clinic) return null
+    const { whatsappAccessToken, ...rest } = clinic
+    return rest
+  },
+})
+
+// Owner-only: the WhatsApp access token itself. Kept out of getMyClinic
+// (read by every staff member) since it's a real secret — whoever has it can
+// send WhatsApp messages as this clinic.
+export const getWhatsAppCredentials = query({
+  args: {},
+  handler: async (ctx) => {
+    const staffUser = await requireOwner(ctx)
+    const clinic = await ctx.db.get(staffUser.clinicId)
+    return { whatsappAccessToken: clinic?.whatsappAccessToken ?? '' }
   },
 })
 
@@ -115,6 +134,8 @@ export const updateClinicSettings = mutation({
     appointmentReminderMessage: v.optional(v.string()),
     contactPhone: v.optional(v.string()),
     whatsappNumber: v.optional(v.string()),
+    whatsappAccessToken: v.optional(v.string()),
+    whatsappPhoneNumberId: v.optional(v.string()),
     bookingTimeSlots: v.optional(v.array(v.string())),
     bookingClosedDays: v.optional(v.array(v.number())),
     bookingWindowDays: v.optional(v.number()),

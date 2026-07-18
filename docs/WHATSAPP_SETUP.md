@@ -3,13 +3,21 @@
 CareConnect sends patient feedback requests, appointment reminders (to both
 patients and, if a phone is on file, therapists — see Settings > Clinic
 Profile > Team), and low-rating follow-ups over WhatsApp using Meta's own
-WhatsApp Business Cloud API. Nothing needs to change in the app's code —
-this is entirely account setup + two Convex environment variables.
+WhatsApp Business Cloud API.
 
-Until this is set up, WhatsApp sends are skipped (logged, not sent) and:
-- Patient feedback-request/reminder messages simply never go out — you'd
-  need to use the "Copy Link" / "WhatsApp" buttons on a patient's timeline
-  in the Patients page to share a feedback link manually instead.
+**Each clinic brings its own Meta Business account and enters their own
+credentials in Settings > Booking & Reminders > WhatsApp Business API.**
+Nothing needs to change in the app's code, and no CLI/Convex Dashboard
+access is needed — this is entirely account setup + two fields any clinic
+owner can fill in themselves. Messages send from the clinic's own WhatsApp
+number, and Meta bills the clinic directly for their own usage — not the app
+operator.
+
+Until a clinic sets this up, WhatsApp sends are skipped (logged, not sent)
+for that clinic and:
+- Patient feedback-request/reminder messages simply never go out — staff
+  can use the "Copy Link" / "WhatsApp" buttons on a patient's timeline in
+  the Patients page to share a feedback link manually instead.
 - Therapist reminders fall back to email automatically (see
   `convex/whatsapp.ts`'s `sendTherapistReminder`) — no action needed there,
   it degrades gracefully.
@@ -39,22 +47,17 @@ In the app's WhatsApp > API Setup page, you'll find:
   with `whatsapp_business_messaging` permission > generate a token with no
   expiration.
 
-## 4. Set the Convex environment variables
+## 4. Enter your credentials in Settings
 
-Both of these are **Convex-side** (backend) variables — not Vite/frontend
-ones, so they don't get a `VITE_` prefix. Set them with the Convex CLI:
+In the app, as the clinic owner: **Settings > Booking & Reminders >
+WhatsApp Business API**, paste in the Phone Number ID and Access Token from
+step 3, then Save. The card shows "Connected" once both fields are filled
+in. The access token is only ever shown to the clinic owner — other staff
+never see it, even though they can see everything else in Settings.
 
-```
-npx convex env set WHATSAPP_ACCESS_TOKEN <your permanent access token>
-npx convex env set WHATSAPP_PHONE_NUMBER_ID <your phone number ID>
-```
-
-or via the Convex Dashboard's Environment Variables page (same place
-`CLERK_JWT_ISSUER_DOMAIN` and `VISIT_COMPLETE_SECRET` were set earlier).
-
-No redeploy step is needed beyond the normal one — the next scheduled
-WhatsApp send (or the next `npx convex deploy`, which already runs
-automatically in CI on every push to `main`) will pick these up.
+No code, redeploy, or Convex CLI access needed — this takes effect
+immediately on save, and each clinic manages their own independently of any
+other clinic on the same deployment.
 
 ## 5. Verify a real business phone number (for production use)
 
@@ -63,28 +66,34 @@ manually add in the Meta dashboard. To message real patients, add and
 verify your clinic's actual WhatsApp Business number: WhatsApp > API Setup
 > "Add phone number," then follow Meta's verification flow (SMS/call code).
 **This step has the longest lead time** — start it early, independent of
-the code/env-var setup above, since Meta's business verification can take
+the Settings entry above, since Meta's business verification can take
 anywhere from a day to a couple of weeks.
 
-## 6. Also worth setting while you're here
+## 6. App-operator setup (once, not per-clinic)
 
-Two related Convex env vars control the links CareConnect puts inside the
-messages it sends — if these aren't set, they silently default to
-`http://localhost:5173`, which will be a dead link for every real patient
-or staff member:
+Two Convex env vars control the links CareConnect puts inside the messages
+it sends — these are set once by whoever operates the deployment, not by
+each clinic, since they're about the app's own URLs rather than a specific
+clinic's WhatsApp account:
 
 ```
-npx convex env set FEEDBACK_FORM_URL https://your-username.github.io/Feedback-management-tool
-npx convex env set DASHBOARD_URL https://your-username.github.io/Feedback-management-tool
+npx convex env set FEEDBACK_FORM_URL https://your-deployed-app-url
+npx convex env set DASHBOARD_URL https://your-deployed-app-url
 ```
 
-(Replace with your actual deployed URL.)
+`WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` can still be set the
+same way as a **deployment-wide fallback** — used only for a clinic that
+hasn't entered their own credentials in Settings yet. This exists for
+backward compatibility with a single-clinic deployment set up before
+per-clinic credentials existed; it is not the intended path once more than
+one clinic shares a deployment, since every clinic without their own
+credentials would send through — and be billed to — this shared account.
 
 ## Testing
 
-Once the env vars are set, trigger a real send by completing an appointment
-or visit for a test patient with a real phone number — that fires the
-feedback-request pipeline. Check `automationLogs` in the Convex dashboard
-(or the Convex function logs) for `send_feedback_request` /
+Once a clinic's credentials are saved, trigger a real send by completing an
+appointment or visit for a test patient with a real phone number — that
+fires the feedback-request pipeline. Check `automationLogs` in the Convex
+dashboard (or the Convex function logs) for `send_feedback_request` /
 `send_appointment_reminder` entries to confirm `result: "success"` rather
 than `"failure"`.

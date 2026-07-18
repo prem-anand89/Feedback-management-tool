@@ -24,6 +24,14 @@ export default defineSchema({
     // website). The WhatsApp number the patient's own device messages when
     // requesting — deliberately per-clinic, not the platform's shared number.
     whatsappNumber: v.optional(v.string()),
+    // WhatsApp Cloud API credentials for *sending* automated messages
+    // (reminders, feedback requests) — distinct from whatsappNumber above,
+    // which is just a plain number for patients to message. Each clinic
+    // brings their own Meta Business account so messages send from their own
+    // number and Meta bills them directly, not the app operator. Entered in
+    // Settings, not a Convex env var — see docs/WHATSAPP_SETUP.md.
+    whatsappAccessToken: v.optional(v.string()),
+    whatsappPhoneNumberId: v.optional(v.string()),
     bookingTimeSlots: v.optional(v.array(v.string())),
     // Days of week closed to booking requests, 0 = Sunday ... 6 = Saturday.
     bookingClosedDays: v.optional(v.array(v.number())),
