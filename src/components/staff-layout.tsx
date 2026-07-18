@@ -19,13 +19,26 @@ import { Logo } from '@/components/logo'
 import { cn } from '@/lib/utils'
 import { getEffectiveTheme, setTheme, type Theme } from '@/lib/theme'
 
-const nav = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/appointments', label: 'Appointments', icon: CalendarClock },
-  { to: '/feedback', label: 'Feedback', icon: Inbox },
-  { to: '/patients', label: 'Patients', icon: Users },
-  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { to: '/settings', label: 'Settings', icon: SettingsIcon },
+// Grouped so the two halves of the app read clearly in the sidebar:
+// front-desk scheduling vs. the feedback/reputation loop. Dashboard (the
+// cross-domain "today" view) and Settings sit ungrouped, top and bottom.
+const navSections = [
+  { label: null, items: [{ to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }] },
+  {
+    label: 'Scheduling',
+    items: [
+      { to: '/appointments', label: 'Appointments', icon: CalendarClock },
+      { to: '/patients', label: 'Patients', icon: Users },
+    ],
+  },
+  {
+    label: 'Reputation',
+    items: [
+      { to: '/feedback', label: 'Feedback', icon: Inbox },
+      { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+    ],
+  },
+  { label: null, items: [{ to: '/settings', label: 'Settings', icon: SettingsIcon }] },
 ] as const
 
 export function StaffLayout({ children }: { children: ReactNode }) {
@@ -68,23 +81,32 @@ export function StaffLayout({ children }: { children: ReactNode }) {
 
   const NavList = () => (
     <nav className="flex flex-col gap-1 px-3">
-      {nav.map((item) => {
-        const active = pathname.startsWith(item.to)
-        const Icon = item.icon
-        return (
-          <Link
-            key={item.to}
-            to={item.to}
-            className={cn(
-              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-              active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-            )}
-          >
-            <Icon className="h-4 w-4" />
-            {item.label}
-          </Link>
-        )
-      })}
+      {navSections.map((section, i) => (
+        <div key={section.label ?? `section-${i}`} className={cn('flex flex-col gap-1', i > 0 && 'mt-4')}>
+          {section.label && (
+            <span className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+              {section.label}
+            </span>
+          )}
+          {section.items.map((item) => {
+            const active = pathname.startsWith(item.to)
+            const Icon = item.icon
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {item.label}
+              </Link>
+            )
+          })}
+        </div>
+      ))}
     </nav>
   )
 
