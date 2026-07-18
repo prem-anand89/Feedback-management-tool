@@ -588,7 +588,7 @@ function PatientsPage() {
                       {selected.email && <> · {selected.email}</>}
                     </CardDescription>
                   </div>
-                  <div className="flex shrink-0 flex-wrap gap-2">
+                  <div className="flex min-w-0 flex-wrap gap-2">
                     <Button onClick={() => setShowScheduleAppointment(true)} size="sm" variant="outline">
                       <CalendarClock className="mr-2 h-4 w-4" />
                       Schedule
@@ -633,7 +633,7 @@ function PatientsPage() {
                             {entry.subtitle && <p className="text-xs text-muted-foreground">{entry.subtitle}</p>}
                           </div>
                           {entry.actions && (
-                            <div className="flex shrink-0 gap-2">
+                            <div className="flex min-w-0 flex-wrap justify-end gap-2">
                               {entry.actions.map((action) => (
                                 <Button
                                   key={action.label}

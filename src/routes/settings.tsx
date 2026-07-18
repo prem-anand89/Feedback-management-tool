@@ -508,7 +508,7 @@ function SettingsPage() {
                               </p>
                             </div>
                             {isOwner && (
-                              <div className="flex shrink-0 gap-1">
+                              <div className="flex min-w-0 gap-1">
                                 <Button size="sm" variant="ghost" onClick={() => startEditStaff(member)}>
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>

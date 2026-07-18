@@ -213,7 +213,7 @@ function AppointmentsPage() {
                       </p>
                       {req.notes && <p className="text-xs text-muted-foreground">"{req.notes}"</p>}
                     </div>
-                    <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                    <div className="flex min-w-0 flex-wrap justify-end gap-2">
                       <Button onClick={() => startConfirmRequest(req)} size="sm">
                         <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                         Confirm
@@ -344,7 +344,7 @@ function AppointmentsPage() {
                             Scheduled
                           </span>
                         </div>
-                        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                        <div className="flex min-w-0 flex-wrap justify-end gap-2">
                           <Button onClick={() => completeAppointment({ appointmentId: appt._id })} size="sm" variant="outline">
                             <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                             Complete
