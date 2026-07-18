@@ -1,5 +1,5 @@
 import { useParams, createRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Route as RootRoute } from './__root'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
@@ -20,6 +20,24 @@ const FLEXIBLE_TIME = "I'm flexible with the timing"
 function toLocalDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
+
+// "09:00 AM" -> minutes since midnight, for sorting/deduping merged slot lists.
+function slotToMinutes(s: string) {
+  const m = s.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i)
+  if (!m) return 0
+  let h = parseInt(m[1], 10)
+  const min = parseInt(m[2], 10)
+  const ap = m[3]?.toUpperCase()
+  if (ap === 'PM' && h !== 12) h += 12
+  if (ap === 'AM' && h === 12) h = 0
+  return h * 60 + min
+}
+
+function sortUniqueSlots(arr: string[]) {
+  return [...new Set(arr)].sort((a, b) => slotToMinutes(a) - slotToMinutes(b))
+}
+
+type Therapist = { _id: string; name: string; weeklyAvailability: { day: number; slots: string[] }[] | null }
 
 function Req() {
   return <span className="text-[#b0455f]"> *</span>
@@ -44,6 +62,37 @@ function BookAppointmentPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
+
+  // Times a patient can pick, given the chosen date and clinician. A specific
+  // clinician shows only their slots for that weekday (or the clinic-wide
+  // list if they have no custom availability); "no preference" merges every
+  // clinician's slots for that day. Empty until a date is chosen, and empty
+  // on closed days. Kept above the early returns to satisfy the Rules of
+  // Hooks (info may still be loading here).
+  const availableSlots = useMemo<string[]>(() => {
+    if (!info || !date) return []
+    const day = new Date(`${date}T00:00:00`).getDay()
+    if (info.closedDays.includes(day)) return []
+    const clinicWide = info.timeSlots
+    const forTherapist = (t: Therapist) => {
+      if (!t.weeklyAvailability) return clinicWide
+      const entry = t.weeklyAvailability.find((x) => x.day === day)
+      return entry ? entry.slots : []
+    }
+    const therapists = info.therapists as Therapist[]
+    if (therapistId) {
+      const t = therapists.find((x) => x._id === therapistId)
+      return sortUniqueSlots(t ? forTherapist(t) : clinicWide)
+    }
+    if (therapists.length === 0) return sortUniqueSlots(clinicWide)
+    return sortUniqueSlots(therapists.flatMap(forTherapist))
+  }, [info, date, therapistId])
+
+  // Drop a previously-picked time that the new date/clinician no longer
+  // offers (keeps "I'm flexible", which is always valid).
+  useEffect(() => {
+    if (time && time !== FLEXIBLE_TIME && !availableSlots.includes(time)) setTime('')
+  }, [availableSlots, time])
 
   if (info === undefined) {
     return (
@@ -76,11 +125,6 @@ function BookAppointmentPage() {
     const day = new Date(`${dateStr}T00:00:00`).getDay()
     return info.closedDays.includes(day)
   }
-
-  // Per-clinician availability isn't modelled yet (it's the next feature —
-  // editable day-wise/per-therapist slots). Until then every clinician shares
-  // the clinic-wide list, so selecting one doesn't narrow the times.
-  const availableSlots: string[] = info.timeSlots
 
   const callHref = info.contactPhone ? `tel:${info.contactPhone.replace(/\s+/g, '')}` : null
   const waHref = info.whatsappNumber ? `https://wa.me/${info.whatsappNumber.replace(/\D/g, '')}` : null
@@ -199,6 +243,16 @@ function BookAppointmentPage() {
   }
 
   const dateIsCustom = !!date && date !== tomorrowStr
+  const selectedTherapist = therapistId ? (info.therapists as Therapist[]).find((t) => t._id === therapistId) : null
+  const timeHint = !date
+    ? 'Pick a date to see available times'
+    : isClosedDay(date)
+      ? null
+      : selectedTherapist
+        ? `Showing ${selectedTherapist.name}'s available times`
+        : info.therapists.length > 0
+          ? "Showing all clinicians' combined times"
+          : null
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f7f5f6] p-4">
@@ -308,6 +362,12 @@ function BookAppointmentPage() {
 
             <div className="flex flex-col gap-2">
               <span className={labelClass}>Time<Req /></span>
+              {timeHint && <p className="text-[11px] text-[#8a8290]">{timeHint}</p>}
+              {date && !isClosedDay(date) && availableSlots.length === 0 && (
+                <p className="text-[11px] text-[#b0455f]">
+                  No times available for this day{selectedTherapist ? ` with ${selectedTherapist.name}` : ''}. Try another date{selectedTherapist ? ' or clinician' : ''}, or pick “I'm flexible”.
+                </p>
+              )}
               <div className="flex flex-wrap gap-2">
                 {availableSlots.map((slot) => (
                   <button

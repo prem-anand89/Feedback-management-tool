@@ -10,6 +10,7 @@ import { Pencil, X, Check, Copy, UserPlus, Trash2 } from 'lucide-react'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { STAFF_ROLES, type StaffRole, roleLabel } from '@/lib/roles'
+import { AvailabilityEditor } from '@/components/settings/availability-editor'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -68,6 +69,12 @@ function SettingsPage() {
   // Fetched separately, owner-only — getMyClinic strips this field since
   // every staff member (not just the owner) reads that query.
   const whatsappCreds = useQuery(api.clinics.getWhatsAppCredentials, isOwner ? {} : 'skip')
+
+  // Only bookable providers get availability (same filter the public booking
+  // form uses — receptionist/admin/staff aren't offered as booking options).
+  const availabilityClinicians = staffList
+    .filter((s: any) => s.role === 'therapist' || s.role === 'owner')
+    .map((s: any) => ({ _id: s._id, name: s.name, weeklyAvailability: s.weeklyAvailability ?? null }))
 
   const handleAddProvider = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -675,6 +682,24 @@ function SettingsPage() {
                       className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                     />
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Clinician Availability</CardTitle>
+                  <CardDescription>
+                    Set each clinician's bookable days and times. On the booking form, a patient who picks a clinician
+                    sees only that clinician's times for the chosen day; “no preference” shows everyone's combined
+                    times. Leave a clinician on “Clinic default hours” to use the Available Time Slots above.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <AvailabilityEditor
+                    clinicians={availabilityClinicians}
+                    defaultSlots={settings.bookingTimeSlotsText.split(',').map((s) => s.trim()).filter(Boolean)}
+                    disabled={!isOwner}
+                  />
                 </CardContent>
               </Card>
 

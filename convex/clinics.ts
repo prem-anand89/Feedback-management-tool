@@ -244,7 +244,7 @@ export const updateStaffMember = mutation({
     name: v.optional(v.string()),
     email: v.optional(v.string()),
     phone: v.optional(v.string()),
-    role: v.optional(v.union(v.literal('owner'), v.literal('therapist'), v.literal('receptionist'))),
+    role: v.optional(v.union(v.literal('therapist'), v.literal('receptionist'), v.literal('admin'), v.literal('staff'))),
   },
   handler: async (ctx, { staffId, name, email, phone, role }) => {
     const caller = await requireOwner(ctx)
@@ -264,6 +264,31 @@ export const updateStaffMember = mutation({
     if (role !== undefined) updates.role = role
 
     await ctx.db.patch(staffId, updates)
+    return staffId
+  },
+})
+
+// Owner-only: sets a clinician's per-weekday booking availability. Pass the
+// full array (one entry per bookable weekday); an empty array clears it,
+// reverting them to the clinic-wide default hours on every open day.
+export const updateStaffAvailability = mutation({
+  args: {
+    staffId: v.id('staffUsers'),
+    weeklyAvailability: v.array(v.object({ day: v.number(), slots: v.array(v.string()) })),
+  },
+  handler: async (ctx, { staffId, weeklyAvailability }) => {
+    const caller = await requireOwner(ctx)
+    const target = await ctx.db.get(staffId)
+    if (!target || target.clinicId !== caller.clinicId) {
+      throw new Error('Staff member not found')
+    }
+    // Normalize: drop days with no slots and anything outside 0–6, so an
+    // "empty" day just means unavailable rather than an empty-array entry.
+    const cleaned = weeklyAvailability
+      .filter((e) => e.day >= 0 && e.day <= 6 && e.slots.length > 0)
+      .map((e) => ({ day: e.day, slots: e.slots.map((s) => s.trim()).filter(Boolean) }))
+      .filter((e) => e.slots.length > 0)
+    await ctx.db.patch(staffId, { weeklyAvailability: cleaned.length > 0 ? cleaned : undefined })
     return staffId
   },
 })
