@@ -139,9 +139,9 @@ export function StaffLayout({ children }: { children: ReactNode }) {
             <Button variant="ghost" size="icon" onClick={toggleTheme} title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}>
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
-            <div className="text-right leading-tight">
+            <div className="hidden text-right leading-tight sm:block">
               <div className="text-sm font-medium">{userName}</div>
-              <div className="text-xs text-muted-foreground">{userEmail}</div>
+              <div className="max-w-[180px] truncate text-xs text-muted-foreground">{userEmail}</div>
             </div>
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
               {userName

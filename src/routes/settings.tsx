@@ -290,7 +290,9 @@ function SettingsPage() {
 
         <div className="max-w-2xl space-y-6">
           <Tabs defaultValue="profile">
-            <TabsList>
+            {/* Scroll the tab bar instead of overflowing the viewport — the
+                three labels don't fit on a narrow phone. */}
+            <TabsList className="flex w-full max-w-full justify-start overflow-x-auto">
               <TabsTrigger value="profile">Clinic Profile</TabsTrigger>
               <TabsTrigger value="booking">Booking &amp; Reminders</TabsTrigger>
               <TabsTrigger value="automation">Feedback Automation</TabsTrigger>
