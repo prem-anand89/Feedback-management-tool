@@ -40,6 +40,7 @@ function PatientsPage() {
   const visits = useQuery(api.visits.listVisits, isAuthenticated ? {} : 'skip') ?? []
   const staffList = useQuery(api.clinics.listStaff, isAuthenticated ? {} : 'skip') ?? []
   const feedbackResponses = useQuery(api.feedback.listFeedbackResponses, isAuthenticated ? {} : 'skip') ?? []
+  const feedbackRequests = useQuery(api.feedback.listFeedbackRequests, isAuthenticated ? {} : 'skip') ?? []
   const reviewRequests = useQuery(api.reviews.listReviewRequests, isAuthenticated ? {} : 'skip') ?? []
 
   const createPatient = useMutation(api.patients.createPatient)
@@ -68,6 +69,7 @@ function PatientsPage() {
   const [isLoadingVisit, setIsLoadingVisit] = useState(false)
   const [isLoadingAppt, setIsLoadingAppt] = useState(false)
   const [error, setError] = useState('')
+  const [copiedRequestId, setCopiedRequestId] = useState<string | null>(null)
 
   const selected = selectedPatientId ? patients.find((p) => p._id === selectedPatientId) : null
   const patientVisits = selected ? visits.filter((v) => v.patientId === selected._id) : []
@@ -77,6 +79,24 @@ function PatientsPage() {
   ) ?? []
 
   const therapistName = (id: string) => staffList.find((s) => s._id === id)?.name ?? 'the clinic'
+
+  // Manual fallback for sharing a feedback link — the automatic WhatsApp
+  // Cloud API send requires Meta Business verification (can take weeks), so
+  // pending requests need a way to actually reach the patient in the
+  // meantime. wa.me needs no API/credentials, just the staff member's own
+  // WhatsApp, same trick the public booking form already uses.
+  const feedbackLink = (token: string) => `${window.location.origin}${import.meta.env.BASE_URL}f/${token}`
+
+  const copyFeedbackLink = async (requestId: string, token: string) => {
+    await navigator.clipboard.writeText(feedbackLink(token))
+    setCopiedRequestId(requestId)
+    setTimeout(() => setCopiedRequestId((current) => (current === requestId ? null : current)), 1500)
+  }
+
+  const whatsappFeedbackLink = (patientPhone: string, patientDisplayName: string, token: string) => {
+    const message = `Hi ${patientDisplayName}, thanks for visiting ${clinic?.name ?? 'us'}! We'd love your feedback: ${feedbackLink(token)}`
+    window.open(`https://wa.me/${patientPhone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank')
+  }
 
   // Appointments that already produced a visit are represented once (as the
   // appointment entry) — the linked visit is suppressed to avoid a duplicate
@@ -137,6 +157,27 @@ function PatientsPage() {
             color: 'blue' as const,
             title: `Visit${a.serviceContext ? `: ${a.serviceContext}` : ''} with ${therapistName(a.therapistId)}`,
             subtitle: new Date(a.completedAt ?? a.scheduledAt).toLocaleDateString(),
+          })),
+        ...feedbackRequests
+          .filter((r) => r.patientId === selected._id && r.status !== 'responded')
+          .map((r) => ({
+            id: `feedback-request-${r._id}`,
+            timestamp: r.sentAt,
+            kind: 'feedback',
+            icon: MessageSquare,
+            color: 'amber' as const,
+            title: r.status === 'reminded' ? 'Feedback reminder sent' : 'Feedback request pending',
+            subtitle: 'Not yet responded — share the link directly if WhatsApp auto-send isn\'t set up',
+            actions: [
+              {
+                label: copiedRequestId === r._id ? 'Copied!' : 'Copy Link',
+                onClick: () => copyFeedbackLink(r._id, r.token),
+              },
+              {
+                label: 'WhatsApp',
+                onClick: () => whatsappFeedbackLink(selected.phone, selected.name, r.token),
+              },
+            ],
           })),
         ...feedbackResponses
           .filter((f) => f.patientId === selected._id)

@@ -24,7 +24,12 @@ export const getPublicClinicBookingInfo = query({
       .query('staffUsers')
       .withIndex('by_clinic', (q) => q.eq('clinicId', clinicId))
       .collect()
-    const therapists = staff.filter((s) => s.role === 'therapist').map((s) => ({ _id: s._id, name: s.name }))
+    // 'owner' included alongside 'therapist' — a solo-owner clinic (the
+    // common case at signup, since /setup only ever creates an 'owner')
+    // would otherwise never see a provider option here at all.
+    const therapists = staff
+      .filter((s) => s.role === 'therapist' || s.role === 'owner')
+      .map((s) => ({ _id: s._id, name: s.name }))
 
     return {
       name: clinic.name,

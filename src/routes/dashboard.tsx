@@ -2,6 +2,7 @@ import { createRoute, Link } from '@tanstack/react-router'
 import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { MessageSquare, Clock, Star, Globe, AlertCircle, CheckCircle, CalendarClock, MessageSquareText } from 'lucide-react'
 import { useQuery, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
@@ -120,6 +121,11 @@ function DashboardPage() {
             <CardTitle>No clinic set up yet</CardTitle>
             <CardDescription>Your account isn't linked to a clinic. Set one up to start collecting feedback.</CardDescription>
           </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link to="/setup">Set up your clinic</Link>
+            </Button>
+          </CardContent>
         </Card>
       </StaffLayout>
     )

@@ -138,6 +138,13 @@ function AppointmentsPage() {
       setError('Pick a therapist before confirming')
       return
     }
+    const request = pendingRequests.find((r: any) => r._id === requestId)
+
+    // Open a blank tab synchronously, inside the click gesture — most
+    // browsers block window.open() called after an awaited async call, so we
+    // reserve the tab now and point it at WhatsApp once confirmation saves.
+    const waTab = request ? window.open('', '_blank') : null
+
     try {
       await confirmAppointmentRequest({
         requestId: requestId as any,
@@ -145,7 +152,16 @@ function AppointmentsPage() {
         scheduledAt: new Date(confirmDateTime).getTime(),
       })
       setConfirmingRequestId(null)
+
+      if (request && waTab) {
+        const when = new Date(confirmDateTime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+        const message = `Hi ${request.patientName}, your appointment at ${clinic?.name ?? 'our clinic'} is confirmed for ${when} with ${therapistName(confirmTherapistId)}. See you then!`
+        waTab.location.href = `https://wa.me/${request.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`
+      } else {
+        waTab?.close()
+      }
     } catch (err) {
+      waTab?.close()
       setError(err instanceof Error ? err.message : 'Failed to confirm request')
     }
   }
@@ -246,7 +262,7 @@ function AppointmentsPage() {
                       </select>
                       <div className="flex gap-2">
                         <Button size="sm" onClick={() => commitConfirmRequest(req._id)}>
-                          Save
+                          Confirm &amp; Notify
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => setConfirmingRequestId(null)}>
                           Cancel
