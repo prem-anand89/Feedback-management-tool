@@ -4,7 +4,7 @@ import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CalendarClock, Plus, Clock, CheckCircle2, XCircle, MessageSquareText } from 'lucide-react'
+import { CalendarClock, Plus, Clock, CheckCircle2, XCircle, MessageCircleMore } from 'lucide-react'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { IconBadge } from '@/components/ui/icon-badge'
@@ -220,7 +220,7 @@ function AppointmentsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <MessageSquareText className="h-4 w-4 text-secondary" />
+                <MessageCircleMore className="h-4 w-4 text-secondary" />
                 Appointment Requests
                 <span className="rounded-full bg-secondary/15 px-2 py-0.5 text-xs font-semibold text-secondary">
                   {pendingRequests.length}

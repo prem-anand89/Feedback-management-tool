@@ -3,7 +3,7 @@ import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { MessageSquare, Clock, Star, Globe, AlertCircle, CheckCircle, CalendarClock, MessageSquareText, CheckCircle2 } from 'lucide-react'
+import { MessageCircle, Clock, Star, Globe, AlertCircle, CheckCircle, CalendarClock, MessageCircleMore, CheckCircle2 } from 'lucide-react'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { IconBadge } from '@/components/ui/icon-badge'
@@ -102,7 +102,7 @@ function DashboardPage() {
       id: f._id,
       message: `Feedback received: ${f.rating}★ rating`,
       timestamp: f.submittedAt,
-      icon: MessageSquare,
+      icon: MessageCircle,
       color: 'blue' as const,
     })),
     ...complaints.map((c) => ({
@@ -223,8 +223,8 @@ function DashboardPage() {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard icon={CalendarClock} color="blue" value={todaysAppointments.length} label="Today's Appointments" />
-          <MetricCard icon={MessageSquareText} color="purple" value={pendingRequests.length} label="Pending Requests" />
-          <MetricCard icon={MessageSquare} color="blue" value={todayFeedback} label="Today's Feedback" />
+          <MetricCard icon={MessageCircleMore} color="purple" value={pendingRequests.length} label="Pending Requests" />
+          <MetricCard icon={MessageCircle} color="blue" value={todayFeedback} label="Today's Feedback" />
           <MetricCard icon={Clock} color="amber" value={pendingFeedback} label="Pending Feedback" />
           <MetricCard icon={Star} color="green" value={`${avgRating} / 5`} label="Average Rating" />
           <MetricCard icon={Globe} color="purple" value={reviewStats?.clicked ?? 0} label="Google Reviews (mo.)" />
@@ -236,7 +236,7 @@ function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <MessageSquareText className="h-4 w-4 text-secondary" />
+                <MessageCircleMore className="h-4 w-4 text-secondary" />
                 Appointment Requests
                 {pendingRequests.length > 0 && (
                   <span className="rounded-full bg-secondary/15 px-2 py-0.5 text-xs font-semibold text-secondary">
@@ -252,7 +252,7 @@ function DashboardPage() {
                 <div className="space-y-1">
                   {pendingRequests.slice(0, 5).map((req) => (
                     <div key={req._id} className="flex items-center gap-3 border-b border-border py-3 last:border-0">
-                      <IconBadge icon={MessageSquareText} size="xs" colorClassName="bg-chipPurple text-chipPurple-foreground" />
+                      <IconBadge icon={MessageCircleMore} size="xs" colorClassName="bg-chipPurple text-chipPurple-foreground" />
                       <div className="flex-1">
                         <p className="text-sm font-medium">{req.patientName}</p>
                         <p className="text-xs text-muted-foreground">

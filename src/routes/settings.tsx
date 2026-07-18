@@ -268,7 +268,6 @@ function SettingsPage() {
               <TabsTrigger value="profile">Clinic Profile</TabsTrigger>
               <TabsTrigger value="booking">Booking &amp; Reminders</TabsTrigger>
               <TabsTrigger value="automation">Feedback Automation</TabsTrigger>
-              <TabsTrigger value="team">Team</TabsTrigger>
             </TabsList>
 
             <TabsContent value="profile" className="space-y-6">
@@ -397,6 +396,173 @@ function SettingsPage() {
                   )}
                 </CardContent>
               </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Team</CardTitle>
+                  <CardDescription>
+                    Providers appear in scheduling and as options on your public booking form. Adding someone here
+                    doesn't give them dashboard access — that requires them to sign up separately and be linked to
+                    your clinic (not available yet). Add a phone number to send appointment reminders to a
+                    provider's WhatsApp instead of email.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {staffList.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No team members yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {staffList.map((member) => {
+                        const hasLogin = !member.userId.startsWith('provider_')
+                        if (isOwner && editingStaffId === member._id) {
+                          return (
+                            <div key={member._id} className="space-y-2 rounded-xl border border-primary bg-primary/5 p-3">
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                <input
+                                  placeholder="Name"
+                                  value={editName}
+                                  onChange={(e) => setEditName(e.target.value)}
+                                  disabled={isSavingStaffEdit}
+                                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                                />
+                                <select
+                                  value={editRole}
+                                  onChange={(e) => setEditRole(e.target.value as StaffRole)}
+                                  disabled={isSavingStaffEdit}
+                                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                                >
+                                  {STAFF_ROLES.map((role) => (
+                                    <option key={role} value={role} className="capitalize">
+                                      {role}
+                                    </option>
+                                  ))}
+                                </select>
+                                <input
+                                  type="email"
+                                  placeholder="Email"
+                                  value={editEmail}
+                                  onChange={(e) => setEditEmail(e.target.value)}
+                                  disabled={isSavingStaffEdit}
+                                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                                />
+                                <input
+                                  type="tel"
+                                  placeholder="Phone (for WhatsApp reminders)"
+                                  value={editPhone}
+                                  onChange={(e) => setEditPhone(e.target.value)}
+                                  disabled={isSavingStaffEdit}
+                                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button size="sm" onClick={handleSaveStaffEdit} disabled={isSavingStaffEdit}>
+                                  {isSavingStaffEdit ? 'Saving...' : 'Save'}
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => setEditingStaffId(null)} disabled={isSavingStaffEdit}>
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          )
+                        }
+                        return (
+                          <div key={member._id} className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
+                            <div>
+                              <p className="text-sm font-medium">
+                                {member.name}
+                                {member._id === staffUser?._id && <span className="text-muted-foreground"> (you)</span>}
+                              </p>
+                              <p className="text-xs capitalize text-muted-foreground">
+                                {member.role}
+                                {member.email && <> · {member.email}</>}
+                                {member.phone && <> · {member.phone}</>}
+                                {!hasLogin && <> · No dashboard login</>}
+                              </p>
+                            </div>
+                            {isOwner && (
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="ghost" onClick={() => startEditStaff(member)}>
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                {member._id !== staffUser?._id && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => handleRemoveStaff(member._id, member.name)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {teamError && (
+                    <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{teamError}</div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {isOwner && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Add a Provider</CardTitle>
+                    <CardDescription>e.g. another therapist or doctor at your clinic</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleAddProvider} className="grid gap-3 sm:grid-cols-2">
+                      <input
+                        placeholder="Name *"
+                        value={newProviderName}
+                        onChange={(e) => setNewProviderName(e.target.value)}
+                        disabled={isAddingProvider}
+                        className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50 sm:col-span-2"
+                      />
+                      <input
+                        type="email"
+                        placeholder="Email (optional)"
+                        value={newProviderEmail}
+                        onChange={(e) => setNewProviderEmail(e.target.value)}
+                        disabled={isAddingProvider}
+                        className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                      />
+                      <input
+                        type="tel"
+                        placeholder="Phone (optional, for WhatsApp reminders)"
+                        value={newProviderPhone}
+                        onChange={(e) => setNewProviderPhone(e.target.value)}
+                        disabled={isAddingProvider}
+                        className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                      />
+                      <select
+                        value={newProviderRole}
+                        onChange={(e) => setNewProviderRole(e.target.value as StaffRole)}
+                        disabled={isAddingProvider}
+                        className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                      >
+                        {STAFF_ROLES.map((role) => (
+                          <option key={role} value={role} className="capitalize">
+                            {role}
+                          </option>
+                        ))}
+                      </select>
+
+                      {teamError && (
+                        <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive sm:col-span-2">{teamError}</div>
+                      )}
+
+                      <Button type="submit" disabled={isAddingProvider} className="sm:col-span-2">
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        {isAddingProvider ? 'Adding...' : 'Add Provider'}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             <TabsContent value="booking" className="space-y-6">
@@ -627,174 +793,6 @@ function SettingsPage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="team" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Team</CardTitle>
-                  <CardDescription>
-                    Providers appear in scheduling and as options on your public booking form. Adding someone here
-                    doesn't give them dashboard access — that requires them to sign up separately and be linked to
-                    your clinic (not available yet). Add a phone number to send appointment reminders to a
-                    provider's WhatsApp instead of email.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {staffList.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No team members yet.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {staffList.map((member) => {
-                        const hasLogin = !member.userId.startsWith('provider_')
-                        if (isOwner && editingStaffId === member._id) {
-                          return (
-                            <div key={member._id} className="space-y-2 rounded-xl border border-primary bg-primary/5 p-3">
-                              <div className="grid gap-2 sm:grid-cols-2">
-                                <input
-                                  placeholder="Name"
-                                  value={editName}
-                                  onChange={(e) => setEditName(e.target.value)}
-                                  disabled={isSavingStaffEdit}
-                                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-                                />
-                                <select
-                                  value={editRole}
-                                  onChange={(e) => setEditRole(e.target.value as StaffRole)}
-                                  disabled={isSavingStaffEdit}
-                                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-                                >
-                                  {STAFF_ROLES.map((role) => (
-                                    <option key={role} value={role} className="capitalize">
-                                      {role}
-                                    </option>
-                                  ))}
-                                </select>
-                                <input
-                                  type="email"
-                                  placeholder="Email"
-                                  value={editEmail}
-                                  onChange={(e) => setEditEmail(e.target.value)}
-                                  disabled={isSavingStaffEdit}
-                                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-                                />
-                                <input
-                                  type="tel"
-                                  placeholder="Phone (for WhatsApp reminders)"
-                                  value={editPhone}
-                                  onChange={(e) => setEditPhone(e.target.value)}
-                                  disabled={isSavingStaffEdit}
-                                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-                                />
-                              </div>
-                              <div className="flex gap-2">
-                                <Button size="sm" onClick={handleSaveStaffEdit} disabled={isSavingStaffEdit}>
-                                  {isSavingStaffEdit ? 'Saving...' : 'Save'}
-                                </Button>
-                                <Button size="sm" variant="outline" onClick={() => setEditingStaffId(null)} disabled={isSavingStaffEdit}>
-                                  Cancel
-                                </Button>
-                              </div>
-                            </div>
-                          )
-                        }
-                        return (
-                          <div key={member._id} className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
-                            <div>
-                              <p className="text-sm font-medium">
-                                {member.name}
-                                {member._id === staffUser?._id && <span className="text-muted-foreground"> (you)</span>}
-                              </p>
-                              <p className="text-xs capitalize text-muted-foreground">
-                                {member.role}
-                                {member.email && <> · {member.email}</>}
-                                {member.phone && <> · {member.phone}</>}
-                                {!hasLogin && <> · No dashboard login</>}
-                              </p>
-                            </div>
-                            {isOwner && (
-                              <div className="flex gap-1">
-                                <Button size="sm" variant="ghost" onClick={() => startEditStaff(member)}>
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
-                                {member._id !== staffUser?._id && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="text-destructive hover:text-destructive"
-                                    onClick={() => handleRemoveStaff(member._id, member.name)}
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                  {teamError && (
-                    <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{teamError}</div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {isOwner && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Add a Provider</CardTitle>
-                    <CardDescription>e.g. another therapist or doctor at your clinic</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={handleAddProvider} className="grid gap-3 sm:grid-cols-2">
-                      <input
-                        placeholder="Name *"
-                        value={newProviderName}
-                        onChange={(e) => setNewProviderName(e.target.value)}
-                        disabled={isAddingProvider}
-                        className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50 sm:col-span-2"
-                      />
-                      <input
-                        type="email"
-                        placeholder="Email (optional)"
-                        value={newProviderEmail}
-                        onChange={(e) => setNewProviderEmail(e.target.value)}
-                        disabled={isAddingProvider}
-                        className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-                      />
-                      <input
-                        type="tel"
-                        placeholder="Phone (optional, for WhatsApp reminders)"
-                        value={newProviderPhone}
-                        onChange={(e) => setNewProviderPhone(e.target.value)}
-                        disabled={isAddingProvider}
-                        className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-                      />
-                      <select
-                        value={newProviderRole}
-                        onChange={(e) => setNewProviderRole(e.target.value as StaffRole)}
-                        disabled={isAddingProvider}
-                        className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-                      >
-                        {STAFF_ROLES.map((role) => (
-                          <option key={role} value={role} className="capitalize">
-                            {role}
-                          </option>
-                        ))}
-                      </select>
-
-                      {teamError && (
-                        <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive sm:col-span-2">{teamError}</div>
-                      )}
-
-                      <Button type="submit" disabled={isAddingProvider} className="sm:col-span-2">
-                        <UserPlus className="mr-2 h-4 w-4" />
-                        {isAddingProvider ? 'Adding...' : 'Add Provider'}
-                      </Button>
-                    </form>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
           </Tabs>
 
           {error && (
