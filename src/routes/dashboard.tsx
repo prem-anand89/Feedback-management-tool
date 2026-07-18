@@ -158,7 +158,7 @@ function DashboardPage() {
                 {todaysAppointments.map((appt) => (
                   <div key={appt._id} className="flex items-center gap-3 border-b border-border py-3 last:border-0">
                     <IconBadge icon={Clock} size="xs" colorClassName="bg-chipBlue text-chipBlue-foreground" />
-                    <div className="flex-1">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium">{patientName(appt.patientId)}</p>
                       <p className="text-xs text-muted-foreground">{therapistName(appt.therapistId)}</p>
                     </div>
@@ -191,7 +191,7 @@ function DashboardPage() {
                 {awaitingCompletion.slice(0, 6).map((appt) => (
                   <div key={appt._id} className="flex items-center gap-3 border-b border-border py-3 last:border-0">
                     <IconBadge icon={Clock} size="xs" colorClassName="bg-chipAmber text-chipAmber-foreground" />
-                    <div className="flex-1">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium">{patientName(appt.patientId)}</p>
                       <p className="text-xs text-muted-foreground">
                         {therapistName(appt.therapistId)} · {new Date(appt.scheduledAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
@@ -238,7 +238,7 @@ function DashboardPage() {
                   {pendingRequests.slice(0, 5).map((req) => (
                     <div key={req._id} className="flex items-center gap-3 border-b border-border py-3 last:border-0">
                       <IconBadge icon={MessageCircleMore} size="xs" colorClassName="bg-chipPurple text-chipPurple-foreground" />
-                      <div className="flex-1">
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium">{req.patientName}</p>
                         <p className="text-xs text-muted-foreground">
                           Requested {req.preferredDate} at {req.preferredTime}
@@ -273,7 +273,7 @@ function DashboardPage() {
                 <div className="space-y-1">
                   {attentionComplaints.map((c) => (
                     <div key={c._id} className="flex items-center gap-3 border-b border-border py-3 last:border-0">
-                      <div className="flex-1">
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium">{patientName(c.patientId)}</p>
                         <p className="text-xs text-muted-foreground">{c.status.replace('-', ' ')}</p>
                       </div>
@@ -303,7 +303,7 @@ function DashboardPage() {
                   return (
                     <div key={activity.id} className="flex items-center gap-3 border-b border-border py-3 last:border-0">
                       <IconBadge icon={Icon} size="xs" colorClassName={metricIconClass[activity.color]} />
-                      <p className="flex-1 text-sm font-medium">{activity.message}</p>
+                      <p className="min-w-0 flex-1 truncate text-sm font-medium">{activity.message}</p>
                       <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                         {relativeTime(activity.timestamp)}
                       </span>

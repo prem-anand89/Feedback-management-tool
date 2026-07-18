@@ -200,7 +200,7 @@ function AppointmentsPage() {
               {pendingRequests.map((req: any) => (
                 <div key={req._id} className="rounded-xl border border-border p-3.5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="space-y-1">
+                    <div className="min-w-0 flex-1 space-y-1">
                       <p className="text-sm font-semibold">{req.patientName}</p>
                       <p className="text-xs text-muted-foreground">
                         {req.phone}
@@ -213,7 +213,7 @@ function AppointmentsPage() {
                       </p>
                       {req.notes && <p className="text-xs text-muted-foreground">"{req.notes}"</p>}
                     </div>
-                    <div className="flex flex-wrap justify-end gap-2">
+                    <div className="flex shrink-0 flex-wrap justify-end gap-2">
                       <Button onClick={() => startConfirmRequest(req)} size="sm">
                         <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                         Confirm
@@ -330,8 +330,8 @@ function AppointmentsPage() {
                 <CardContent className="space-y-3">
                   {appts.map((appt) => (
                     <div key={appt._id} className="rounded-xl border border-border p-3.5">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="space-y-1">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1 space-y-1">
                           <p className="text-sm font-semibold">
                             {new Date(appt.scheduledAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · {patientName(appt.patientId)}
                           </p>
@@ -344,7 +344,7 @@ function AppointmentsPage() {
                             Scheduled
                           </span>
                         </div>
-                        <div className="flex flex-wrap justify-end gap-2">
+                        <div className="flex shrink-0 flex-wrap justify-end gap-2">
                           <Button onClick={() => completeAppointment({ appointmentId: appt._id })} size="sm" variant="outline">
                             <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                             Complete
