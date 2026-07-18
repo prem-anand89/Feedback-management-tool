@@ -564,15 +564,15 @@ function PatientsPage() {
           {selected ? (
             <Card className="md:col-span-2">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
                     <CardTitle className="flex items-center gap-1.5 text-xl">
                       {selected.name}
                       <button onClick={startEditPatient} title="Edit patient" className="text-muted-foreground hover:text-foreground">
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                     </CardTitle>
-                    <CardDescription className="flex items-center gap-2">
+                    <CardDescription className="flex flex-wrap items-center gap-2">
                       <a href={`tel:${selected.phone}`} className="inline-flex items-center gap-1 hover:text-foreground hover:underline">
                         <Phone className="h-3 w-3" />
                         {selected.phone}
@@ -588,7 +588,7 @@ function PatientsPage() {
                       {selected.email && <> · {selected.email}</>}
                     </CardDescription>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex shrink-0 flex-wrap gap-2">
                     <Button onClick={() => setShowScheduleAppointment(true)} size="sm" variant="outline">
                       <CalendarClock className="mr-2 h-4 w-4" />
                       Schedule

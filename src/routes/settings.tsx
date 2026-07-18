@@ -485,8 +485,8 @@ function SettingsPage() {
                           )
                         }
                         return (
-                          <div key={member._id} className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
-                            <div>
+                          <div key={member._id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-3">
+                            <div className="min-w-0 flex-1">
                               <p className="text-sm font-medium">
                                 {member.name}
                                 {member._id === staffUser?._id && <span className="text-muted-foreground"> (you)</span>}
@@ -499,7 +499,7 @@ function SettingsPage() {
                               </p>
                             </div>
                             {isOwner && (
-                              <div className="flex gap-1">
+                              <div className="flex shrink-0 gap-1">
                                 <Button size="sm" variant="ghost" onClick={() => startEditStaff(member)}>
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>
