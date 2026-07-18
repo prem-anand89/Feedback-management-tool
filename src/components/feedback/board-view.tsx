@@ -34,7 +34,7 @@ export function BoardView({ complaints, selectedFeedbackResponseId, onSelect, pa
       {STATUSES.map((status) => {
         const statusComplaints = complaints.filter((c) => c.status === status)
         return (
-          <div key={status} className={`rounded-2xl border-t-4 bg-card ${columnAccent[status]} border border-border`}>
+          <div key={status} className={`min-w-0 rounded-2xl border-t-4 bg-card ${columnAccent[status]} border border-border`}>
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <h3 className="text-sm font-semibold capitalize">{status.replace('-', ' ')}</h3>
               <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
@@ -58,7 +58,7 @@ export function BoardView({ complaints, selectedFeedbackResponseId, onSelect, pa
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <p className="font-semibold">{patientName(complaint.patientId)}</p>
+                        <p className="min-w-0 flex-1 truncate font-semibold">{patientName(complaint.patientId)}</p>
                         <Badge variant={`priority-${complaint.priority}` as BadgeVariant}>{complaint.priority}</Badge>
                       </div>
                       {complaintExcerpt && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{complaintExcerpt}</p>}
