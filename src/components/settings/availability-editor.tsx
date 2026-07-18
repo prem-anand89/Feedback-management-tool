@@ -2,12 +2,27 @@ import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { Button } from '@/components/ui/button'
-import { ChevronDown, Check } from 'lucide-react'
+import { ChevronDown, Check, Copy } from 'lucide-react'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-const inputClass =
-  'w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50'
+// "06:00 AM", "06:30 AM", … "08:30 PM" — covers ordinary clinic hours as
+// tappable chips. Any slot a clinician already has saved outside this range
+// (set via the old free-text UI, or just an odd hour) is still shown as its
+// own chip so it's never silently dropped.
+function buildStandardSlots(): string[] {
+  const out: string[] = []
+  for (let mins = 6 * 60; mins <= 20 * 60 + 30; mins += 30) {
+    const h24 = Math.floor(mins / 60)
+    const m = mins % 60
+    const ap = h24 < 12 ? 'AM' : 'PM'
+    const h12 = ((h24 + 11) % 12) + 1
+    out.push(`${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ap}`)
+  }
+  return out
+}
+const STANDARD_SLOTS = buildStandardSlots()
 
 type Clinician = {
   _id: string
@@ -15,11 +30,40 @@ type Clinician = {
   weeklyAvailability?: { day: number; slots: string[] }[] | null
 }
 
-function parseSlots(text: string): string[] {
-  return text
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
+function DayChips({
+  slots,
+  onToggle,
+  disabled,
+}: {
+  slots: string[]
+  onToggle: (slot: string) => void
+  disabled: boolean
+}) {
+  // Union of the standard grid + anything custom already selected, so an
+  // unusual saved time (e.g. "07:15 AM") still gets its own chip.
+  const allSlots = [...new Set([...STANDARD_SLOTS, ...slots])].sort(
+    (a, b) => STANDARD_SLOTS.indexOf(a) - STANDARD_SLOTS.indexOf(b) || a.localeCompare(b),
+  )
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {allSlots.map((slot) => {
+        const active = slots.includes(slot)
+        return (
+          <button
+            key={slot}
+            type="button"
+            disabled={disabled}
+            onClick={() => onToggle(slot)}
+            className={`rounded-full border px-2.5 py-1 text-xs font-medium tabular-nums transition disabled:opacity-50 ${
+              active ? 'border-primary bg-primary/10 text-primary' : 'border-input text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+            }`}
+          >
+            {slot}
+          </button>
+        )
+      })}
+    </div>
+  )
 }
 
 function ClinicianRow({ clinician, defaultSlots, disabled }: { clinician: Clinician; defaultSlots: string[]; disabled: boolean }) {
@@ -28,9 +72,9 @@ function ClinicianRow({ clinician, defaultSlots, disabled }: { clinician: Clinic
 
   const [expanded, setExpanded] = useState(false)
   const [custom, setCustom] = useState(hasCustom)
-  const [days, setDays] = useState<string[]>(() => {
-    const arr = Array(7).fill('') as string[]
-    for (const e of clinician.weeklyAvailability ?? []) arr[e.day] = e.slots.join(', ')
+  const [days, setDays] = useState<string[][]>(() => {
+    const arr: string[][] = Array.from({ length: 7 }, () => [])
+    for (const e of clinician.weeklyAvailability ?? []) arr[e.day] = [...e.slots]
     return arr
   })
   const [saving, setSaving] = useState(false)
@@ -40,17 +84,25 @@ function ClinicianRow({ clinician, defaultSlots, disabled }: { clinician: Clinic
   const enableCustom = () => {
     // Starting from the clinic's default hours on every day is the friendliest
     // baseline — the owner trims the days/times that don't apply.
-    if (days.every((d) => !d.trim())) setDays(Array(7).fill(defaultSlots.join(', ')))
+    if (days.every((d) => d.length === 0)) setDays(Array.from({ length: 7 }, () => [...defaultSlots]))
     setCustom(true)
+  }
+
+  const toggleSlot = (day: number, slot: string) => {
+    setDays((prev) =>
+      prev.map((d, i) => (i === day ? (d.includes(slot) ? d.filter((s) => s !== slot) : [...d, slot].sort((a, b) => STANDARD_SLOTS.indexOf(a) - STANDARD_SLOTS.indexOf(b))) : d)),
+    )
+  }
+
+  const copyToAllDays = (day: number) => {
+    setDays((prev) => prev.map(() => [...prev[day]]))
   }
 
   const save = async () => {
     setSaving(true)
     setError('')
     try {
-      const weeklyAvailability = custom
-        ? days.map((text, day) => ({ day, slots: parseSlots(text) })).filter((e) => e.slots.length > 0)
-        : []
+      const weeklyAvailability = custom ? days.map((slots, day) => ({ day, slots })).filter((e) => e.slots.length > 0) : []
       await update({ staffId: clinician._id as any, weeklyAvailability })
       setSaved(true)
       setTimeout(() => setSaved(false), 1600)
@@ -76,7 +128,7 @@ function ClinicianRow({ clinician, defaultSlots, disabled }: { clinician: Clinic
       </button>
 
       {expanded && (
-        <div className="space-y-3 border-t border-border p-3">
+        <div className="space-y-4 border-t border-border p-3">
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -101,22 +153,29 @@ function ClinicianRow({ clinician, defaultSlots, disabled }: { clinician: Clinic
           </div>
 
           {custom ? (
-            <div className="space-y-2">
+            <div className="space-y-4">
               {DAYS.map((dayName, day) => (
-                <div key={day} className="flex items-center gap-3">
-                  <span className="w-20 shrink-0 text-xs font-medium text-muted-foreground">{dayName}</span>
-                  <input
-                    value={days[day]}
-                    onChange={(e) => setDays((prev) => prev.map((d, i) => (i === day ? e.target.value : d)))}
-                    disabled={disabled}
-                    placeholder="Closed — leave blank"
-                    className={inputClass}
-                  />
+                <div key={day} className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold">{dayName}</span>
+                    <div className="flex items-center gap-2">
+                      {days[day].length === 0 && <span className="text-[11px] text-muted-foreground">Closed</span>}
+                      <button
+                        type="button"
+                        disabled={disabled || days[day].length === 0}
+                        onClick={() => copyToAllDays(day)}
+                        title={`Copy ${DAYS_SHORT[day]}'s hours to every day`}
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-primary disabled:opacity-40"
+                      >
+                        <Copy className="h-3 w-3" />
+                        Copy to all days
+                      </button>
+                    </div>
+                  </div>
+                  <DayChips slots={days[day]} onToggle={(slot) => toggleSlot(day, slot)} disabled={disabled} />
                 </div>
               ))}
-              <p className="text-xs text-muted-foreground">
-                Comma-separated times per day (e.g. “09:00 AM, 09:30 AM”). Leave a day blank to mark it closed for this clinician.
-              </p>
+              <p className="text-xs text-muted-foreground">Tap times to toggle them on or off for that day. Leave a day empty to mark it closed for this clinician.</p>
             </div>
           ) : (
             <p className="text-xs text-muted-foreground">
