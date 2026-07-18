@@ -38,6 +38,9 @@ export default defineSchema({
     userId: v.string(), // Clerk user ID
     name: v.string(),
     email: v.string(),
+    // WhatsApp reminders to this person (appointment reminders) use this
+    // when set; falls back to an email reminder otherwise.
+    phone: v.optional(v.string()),
     role: v.union(v.literal('owner'), v.literal('therapist'), v.literal('receptionist')),
     createdAt: v.number(),
   })
