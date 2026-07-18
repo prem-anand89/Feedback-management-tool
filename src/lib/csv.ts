@@ -51,6 +51,20 @@ function normalizePhone(phone: string) {
   return phone.trim()
 }
 
+// Triggers a browser download of `rows` as a CSV file. Client-side only —
+// no backend export endpoint, since every page that needs this already has
+// the data loaded via existing queries.
+export function downloadCsv(filename: string, rows: Record<string, string | number>[]) {
+  const csv = Papa.unparse(rows)
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 export async function parseImportCsv(fileText: string): Promise<ParseResult> {
   const parsed = Papa.parse<Record<string, string>>(fileText, {
     header: true,
