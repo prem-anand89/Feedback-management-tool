@@ -153,7 +153,7 @@ function FeedbackPage() {
           />
         ) : (
           <div className="grid gap-6 md:grid-cols-3">
-            <Card className="md:col-span-2">
+            <Card className="min-w-0 md:col-span-2">
               <CardHeader>
                 <CardTitle>All Feedback</CardTitle>
                 <CardDescription>{visibleResponses.length} response{visibleResponses.length === 1 ? '' : 's'}</CardDescription>
@@ -174,26 +174,24 @@ function FeedbackPage() {
                           }`}
                         >
                           <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="font-medium">{patientName(feedback.patientId)}</p>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-medium">{patientName(feedback.patientId)}</p>
                               <p className="text-xs text-muted-foreground">
                                 {therapistName(feedback.therapistId)} · {new Date(feedback.submittedAt).toLocaleDateString()}
                               </p>
                             </div>
-                            <div className="flex shrink-0 items-center gap-2">
-                              {complaint && (
-                                <>
-                                  <Badge variant={`priority-${complaint.priority}` as BadgeVariant}>{complaint.priority}</Badge>
-                                  <Badge variant={`status-${complaint.status}` as BadgeVariant}>{complaint.status.replace('-', ' ')}</Badge>
-                                </>
-                              )}
-                              <div className="flex items-center gap-0.5">
-                                {Array.from({ length: 5 }).map((_, i) => (
-                                  <Star key={i} className={`h-3.5 w-3.5 ${i < feedback.rating ? 'fill-chipAmber-foreground text-chipAmber-foreground' : 'text-muted'}`} />
-                                ))}
-                              </div>
+                            <div className="flex shrink-0 items-center gap-0.5">
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <Star key={i} className={`h-3.5 w-3.5 ${i < feedback.rating ? 'fill-chipAmber-foreground text-chipAmber-foreground' : 'text-muted'}`} />
+                              ))}
                             </div>
                           </div>
+                          {complaint && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <Badge variant={`priority-${complaint.priority}` as BadgeVariant}>{complaint.priority}</Badge>
+                              <Badge variant={`status-${complaint.status}` as BadgeVariant}>{complaint.status.replace('-', ' ')}</Badge>
+                            </div>
+                          )}
                           {feedback.comments && <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{feedback.comments}</p>}
                         </button>
                       )
@@ -204,9 +202,9 @@ function FeedbackPage() {
             </Card>
 
             {selected && (
-              <Card>
+              <Card className="min-w-0">
                 <CardHeader>
-                  <CardTitle>{patientName(selected.patientId)}</CardTitle>
+                  <CardTitle className="truncate">{patientName(selected.patientId)}</CardTitle>
                   <CardDescription>{new Date(selected.submittedAt).toLocaleString()}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
