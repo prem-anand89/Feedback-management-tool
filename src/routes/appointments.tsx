@@ -10,6 +10,7 @@ import { api } from '../../convex/_generated/api'
 import { IconBadge } from '@/components/ui/icon-badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { WeekView } from '@/components/appointments/week-view'
+import { ScheduleAppointmentForm } from '@/components/appointments/schedule-appointment-form'
 
 const inputClass =
   'w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50'
@@ -59,7 +60,6 @@ function AppointmentsPage() {
   const upcoming = useQuery(api.appointments.listUpcomingAppointments, isAuthenticated ? {} : 'skip') ?? []
   const pendingRequests = useQuery(api.appointmentRequests.listPendingAppointmentRequests, isAuthenticated ? {} : 'skip') ?? []
 
-  const createAppointment = useMutation(api.appointments.createAppointment)
   const completeAppointment = useMutation(api.appointments.completeAppointment)
   const cancelAppointment = useMutation(api.appointments.cancelAppointment)
   const rescheduleAppointment = useMutation(api.appointments.rescheduleAppointment)
@@ -70,11 +70,6 @@ function AppointmentsPage() {
   const services = clinic?.services ?? []
 
   const [showSchedule, setShowSchedule] = useState(false)
-  const [apptPatientId, setApptPatientId] = useState('')
-  const [apptDateTime, setApptDateTime] = useState('')
-  const [apptService, setApptService] = useState('')
-  const [apptTherapistId, setApptTherapistId] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
   const [reschedulingId, setReschedulingId] = useState<string | null>(null)
   const [rescheduleDateTime, setRescheduleDateTime] = useState('')
   const [confirmingRequestId, setConfirmingRequestId] = useState<string | null>(null)
@@ -101,33 +96,6 @@ function AppointmentsPage() {
     base.setDate(base.getDate() + weekOffset * 7)
     return base
   })()
-
-  const handleSchedule = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!apptPatientId || !apptDateTime || !apptTherapistId) {
-      setError('Patient, date/time, and therapist are required')
-      return
-    }
-    setIsLoading(true)
-    setError('')
-    try {
-      await createAppointment({
-        patientId: apptPatientId as any,
-        therapistId: apptTherapistId as any,
-        scheduledAt: new Date(apptDateTime).getTime(),
-        serviceContext: apptService || undefined,
-      })
-      setApptPatientId('')
-      setApptDateTime('')
-      setApptService('')
-      setApptTherapistId('')
-      setShowSchedule(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to schedule appointment')
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const startReschedule = (appointmentId: string, currentScheduledAt: number) => {
     setReschedulingId(appointmentId)
@@ -304,62 +272,13 @@ function AppointmentsPage() {
               <CardDescription>A WhatsApp reminder is sent automatically before the appointment.</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSchedule} className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Patient</label>
-                    <select value={apptPatientId} onChange={(e) => setApptPatientId(e.target.value)} disabled={isLoading} className={inputClass}>
-                      <option value="">Select a patient…</option>
-                      {patients.map((p) => (
-                        <option key={p._id} value={p._id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Date &amp; Time</label>
-                    <input
-                      type="datetime-local"
-                      value={apptDateTime}
-                      onChange={(e) => setApptDateTime(e.target.value)}
-                      disabled={isLoading}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Service</label>
-                    <select value={apptService} onChange={(e) => setApptService(e.target.value)} disabled={isLoading} className={inputClass}>
-                      <option value="">Select a service…</option>
-                      {services.map((service) => (
-                        <option key={service} value={service}>
-                          {service}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Therapist</label>
-                    <select value={apptTherapistId} onChange={(e) => setApptTherapistId(e.target.value)} disabled={isLoading} className={inputClass}>
-                      <option value="">Select a therapist…</option>
-                      {staffList.map((staff) => (
-                        <option key={staff._id} value={staff._id}>
-                          {staff.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                {error && <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? 'Scheduling...' : 'Schedule Appointment'}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => setShowSchedule(false)} disabled={isLoading}>
-                    Cancel
-                  </Button>
-                </div>
-              </form>
+              <ScheduleAppointmentForm
+                patients={patients}
+                services={services}
+                staffList={staffList}
+                onDone={() => setShowSchedule(false)}
+                onCancel={() => setShowSchedule(false)}
+              />
             </CardContent>
           </Card>
         )}
