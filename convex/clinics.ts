@@ -123,8 +123,9 @@ export const updateClinicSettings = mutation({
   },
 })
 
-// Not called from any UI yet (no staff-invite flow exists) — kept for a
-// future invite feature. Note: this lets any owner insert an arbitrary
+// Not called from any UI yet (no real Clerk-invite flow exists) — kept for
+// a future invite feature where the caller already knows the new staff
+// member's real Clerk userId. Note: this lets any owner insert an arbitrary
 // Clerk userId as staff, including role 'owner', with no verification that
 // the userId corresponds to a real account. Fine while unreachable from the
 // UI, but must gain proper verification before it's wired into one.
@@ -146,6 +147,63 @@ export const addStaffMember = mutation({
       role,
       createdAt: Date.now(),
     })
+    return staffId
+  },
+})
+
+function generateProviderId() {
+  // Deliberately distinct from Clerk's own "user_..." id format and
+  // cryptographically random, so this can never collide with — or be
+  // confused for — a real Clerk userId. requireStaffUser looks up staff by
+  // matching identity.subject against this field, so a row using one of
+  // these can never authenticate as staff; it only ever appears as a
+  // selectable name in scheduling/booking dropdowns.
+  return 'provider_' + crypto.getRandomValues(new Uint8Array(16)).reduce((a, b) => a + b.toString(16).padStart(2, '0'), '')
+}
+
+// Adds a named provider WITHOUT a real login — the common case for a small
+// clinic that just wants "Dr. Smith" selectable for scheduling and shown as
+// a preferred-therapist option on the public booking form, without needing
+// to grant dashboard access (which would require a real Clerk-invite flow
+// this app doesn't have yet — see addStaffMember above).
+export const addProvider = mutation({
+  args: {
+    name: v.string(),
+    email: v.optional(v.string()),
+    role: v.union(v.literal('owner'), v.literal('therapist'), v.literal('receptionist')),
+  },
+  handler: async (ctx, { name, email, role }) => {
+    const caller = await requireOwner(ctx)
+    const trimmedName = name.trim()
+    if (!trimmedName) throw new Error('Name is required')
+
+    const staffId = await ctx.db.insert('staffUsers', {
+      clinicId: caller.clinicId,
+      userId: generateProviderId(),
+      name: trimmedName,
+      email: email?.trim() || '',
+      role,
+      createdAt: Date.now(),
+    })
+    return staffId
+  },
+})
+
+// Owner-only: removes a staff/provider row. Guards against an owner
+// removing their own row (which would strand the clinic with no owner) —
+// use a different owner account for that, not this.
+export const removeStaffMember = mutation({
+  args: { staffId: v.id('staffUsers') },
+  handler: async (ctx, { staffId }) => {
+    const caller = await requireOwner(ctx)
+    const target = await ctx.db.get(staffId)
+    if (!target || target.clinicId !== caller.clinicId) {
+      throw new Error('Staff member not found')
+    }
+    if (target._id === caller._id) {
+      throw new Error("You can't remove your own account")
+    }
+    await ctx.db.delete(staffId)
     return staffId
   },
 })

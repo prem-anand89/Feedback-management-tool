@@ -142,6 +142,11 @@ export const sendTherapistAppointmentReminder = internalAction({
     if (!therapist || !patient || !clinic) {
       return { success: false, error: 'Therapist, patient, or clinic not found' }
     }
+    if (!therapist.email) {
+      // Providers added without a real login (clinics.addProvider) have no
+      // email — nothing to send to, and not an error worth logging as one.
+      return { success: false, error: 'Therapist has no email on file' }
+    }
 
     const when = new Date(appointment.scheduledAt).toLocaleString('en-US', {
       weekday: 'short',
