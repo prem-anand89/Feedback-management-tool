@@ -10,11 +10,14 @@ import {
   Settings as SettingsIcon,
   LogOut,
   Menu,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Logo } from '@/components/logo'
 import { cn } from '@/lib/utils'
+import { getEffectiveTheme, setTheme, type Theme } from '@/lib/theme'
 
 const nav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -31,6 +34,17 @@ export function StaffLayout({ children }: { children: ReactNode }) {
   const { user, isLoaded } = useUser()
   const { signOut } = useClerk()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [theme, setThemeState] = useState<Theme>('light')
+
+  useEffect(() => {
+    setThemeState(getEffectiveTheme())
+  }, [])
+
+  const toggleTheme = () => {
+    const next: Theme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    setThemeState(next)
+  }
 
   useEffect(() => {
     if (isLoaded && !user) {
@@ -93,21 +107,16 @@ export function StaffLayout({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b bg-background/80 px-4 backdrop-blur">
           <div className="flex items-center gap-2 md:hidden">
-            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-64 p-0">
-                <Brand />
-                <NavList />
-              </SheetContent>
-            </Sheet>
+            <Button variant="ghost" size="icon" onClick={() => setMobileOpen(true)}>
+              <Menu className="h-5 w-5" />
+            </Button>
             <Logo markClassName="h-7 w-7" className="[&_span]:text-base" />
           </div>
 
           <div className="ml-auto flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={toggleTheme} title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}>
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             <div className="text-right leading-tight">
               <div className="text-sm font-medium">{userName}</div>
               <div className="text-xs text-muted-foreground">{userEmail}</div>
@@ -127,6 +136,18 @@ export function StaffLayout({ children }: { children: ReactNode }) {
 
         <main className="flex-1 p-4 md:p-8">{children}</main>
       </div>
+
+      {/* Rendered as a sibling of <header>, not a descendant — the header's
+          backdrop-blur establishes a CSS containing block for fixed-position
+          descendants in Chromium, which was clipping this sheet's fixed
+          inset-0 backdrop/panel to the header's own 56px-tall box instead of
+          the viewport. */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent side="left" className="w-64 p-0">
+          <Brand />
+          <NavList />
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

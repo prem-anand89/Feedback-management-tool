@@ -6,28 +6,81 @@ import { requireStaffUser } from './lib/auth'
 import { insertCompletedVisit } from './visits'
 
 const DEFAULT_REMINDER_LEAD_HOURS = 24
+// Used only for overlap math when an appointment has no explicit duration
+// set — matches the same assumption the public booking form's fixed
+// half-hour/hour slot list implies.
+const DEFAULT_DURATION_MINUTES = 60
 
-// Schedules the WhatsApp reminder for an appointment and returns the
-// scheduled job's id (stored as a string so it can be cancelled later if the
-// appointment is rescheduled or cancelled before the reminder fires). Skips
-// scheduling if the reminder time has already passed (e.g. a same-day booking
-// made inside the lead window) rather than firing immediately.
-async function scheduleReminder(
+// Standard interval-overlap check: two ranges overlap if each starts before
+// the other ends. Only considers 'scheduled' appointments for the same
+// therapist — cancelled/completed/no-show appointments no longer occupy a
+// slot, and a different therapist can legitimately see the same patient at
+// the same time (double-booking is a per-provider conflict, not a
+// per-patient or per-clinic one).
+async function findOverlappingAppointment(
   ctx: MutationCtx,
-  args: { appointmentId: Id<'appointments'>; clinicId: Id<'clinics'>; patientId: Id<'patients'>; scheduledAt: number },
-): Promise<string | undefined> {
+  args: {
+    therapistId: Id<'staffUsers'>
+    scheduledAt: number
+    durationMinutes?: number
+    excludeAppointmentId?: Id<'appointments'>
+  },
+): Promise<Doc<'appointments'> | undefined> {
+  const duration = (args.durationMinutes ?? DEFAULT_DURATION_MINUTES) * 60 * 1000
+  const start = args.scheduledAt
+  const end = start + duration
+
+  const appointments = await ctx.db
+    .query('appointments')
+    .withIndex('by_therapist', (idx) => idx.eq('therapistId', args.therapistId))
+    .collect()
+
+  return appointments.find((a) => {
+    if (a.status !== 'scheduled') return false
+    if (args.excludeAppointmentId && a._id === args.excludeAppointmentId) return false
+    const aDuration = (a.durationMinutes ?? DEFAULT_DURATION_MINUTES) * 60 * 1000
+    const aEnd = a.scheduledAt + aDuration
+    return start < aEnd && a.scheduledAt < end
+  })
+}
+
+// Schedules both the WhatsApp reminder to the patient and the companion
+// email reminder to the assigned therapist, returning each scheduled job's
+// id (stored as strings so either can be cancelled later if the appointment
+// is rescheduled or cancelled before the reminders fire). Skips scheduling
+// a reminder if its fire time has already passed (e.g. a same-day booking
+// made inside the lead window) rather than firing immediately.
+async function scheduleReminders(
+  ctx: MutationCtx,
+  args: {
+    appointmentId: Id<'appointments'>
+    clinicId: Id<'clinics'>
+    patientId: Id<'patients'>
+    therapistId: Id<'staffUsers'>
+    scheduledAt: number
+  },
+): Promise<{ reminderJobId: string | undefined; therapistReminderJobId: string | undefined }> {
   const clinic = await ctx.db.get(args.clinicId)
   const leadHours = clinic?.appointmentReminderLeadHours ?? DEFAULT_REMINDER_LEAD_HOURS
   const reminderAt = args.scheduledAt - leadHours * 60 * 60 * 1000
   const delay = reminderAt - Date.now()
-  if (delay <= 0) return undefined
+  if (delay <= 0) return { reminderJobId: undefined, therapistReminderJobId: undefined }
 
-  const jobId = await ctx.scheduler.runAfter(delay, internal.whatsapp.sendAppointmentReminder, {
+  const reminderJobId = await ctx.scheduler.runAfter(delay, internal.whatsapp.sendAppointmentReminder, {
     appointmentId: args.appointmentId,
     clinicId: args.clinicId,
     patientId: args.patientId,
   })
-  return jobId as unknown as string
+  const therapistReminderJobId = await ctx.scheduler.runAfter(delay, internal.emails.sendTherapistAppointmentReminder, {
+    appointmentId: args.appointmentId,
+    clinicId: args.clinicId,
+    patientId: args.patientId,
+    therapistId: args.therapistId,
+  })
+  return {
+    reminderJobId: reminderJobId as unknown as string,
+    therapistReminderJobId: therapistReminderJobId as unknown as string,
+  }
 }
 
 async function cancelReminderIfAny(ctx: MutationCtx, reminderJobId: string | undefined) {
@@ -37,6 +90,11 @@ async function cancelReminderIfAny(ctx: MutationCtx, reminderJobId: string | und
   } catch {
     // Already fired or otherwise gone — nothing to do.
   }
+}
+
+async function cancelRemindersIfAny(ctx: MutationCtx, appointment: Doc<'appointments'>) {
+  await cancelReminderIfAny(ctx, appointment.reminderJobId)
+  await cancelReminderIfAny(ctx, appointment.therapistReminderJobId)
 }
 
 async function requireOwnedAppointment(ctx: MutationCtx, appointmentId: Id<'appointments'>) {
@@ -140,6 +198,15 @@ export async function insertScheduledAppointment(
     notes?: string
   },
 ) {
+  const conflict = await findOverlappingAppointment(ctx, {
+    therapistId: args.therapistId,
+    scheduledAt: args.scheduledAt,
+    durationMinutes: args.durationMinutes,
+  })
+  if (conflict) {
+    throw new Error('This therapist already has an appointment scheduled during this time')
+  }
+
   const trimmedService = args.serviceContext?.trim()
   const appointmentId = await ctx.db.insert('appointments', {
     clinicId: args.clinicId,
@@ -153,14 +220,15 @@ export async function insertScheduledAppointment(
     createdAt: Date.now(),
   })
 
-  const reminderJobId = await scheduleReminder(ctx, {
+  const { reminderJobId, therapistReminderJobId } = await scheduleReminders(ctx, {
     appointmentId,
     clinicId: args.clinicId,
     patientId: args.patientId,
+    therapistId: args.therapistId,
     scheduledAt: args.scheduledAt,
   })
-  if (reminderJobId) {
-    await ctx.db.patch(appointmentId, { reminderJobId })
+  if (reminderJobId || therapistReminderJobId) {
+    await ctx.db.patch(appointmentId, { reminderJobId, therapistReminderJobId })
   }
 
   return appointmentId
@@ -216,12 +284,23 @@ export const rescheduleAppointment = mutation({
       throw new Error('Appointment time must be in the future')
     }
 
-    await cancelReminderIfAny(ctx, appointment.reminderJobId)
+    const conflict = await findOverlappingAppointment(ctx, {
+      therapistId: appointment.therapistId,
+      scheduledAt,
+      durationMinutes: appointment.durationMinutes,
+      excludeAppointmentId: appointmentId,
+    })
+    if (conflict) {
+      throw new Error('This therapist already has an appointment scheduled during this time')
+    }
 
-    const reminderJobId = await scheduleReminder(ctx, {
+    await cancelRemindersIfAny(ctx, appointment)
+
+    const { reminderJobId, therapistReminderJobId } = await scheduleReminders(ctx, {
       appointmentId,
       clinicId: appointment.clinicId,
       patientId: appointment.patientId,
+      therapistId: appointment.therapistId,
       scheduledAt,
     })
 
@@ -231,6 +310,7 @@ export const rescheduleAppointment = mutation({
       cancelledAt: undefined,
       cancelReason: undefined,
       reminderJobId,
+      therapistReminderJobId,
     })
 
     return appointmentId
@@ -248,13 +328,14 @@ export const cancelAppointment = mutation({
       throw new Error('Completed appointments cannot be cancelled')
     }
 
-    await cancelReminderIfAny(ctx, appointment.reminderJobId)
+    await cancelRemindersIfAny(ctx, appointment)
 
     await ctx.db.patch(appointmentId, {
       status: 'cancelled',
       cancelledAt: Date.now(),
       cancelReason: reason,
       reminderJobId: undefined,
+      therapistReminderJobId: undefined,
     })
 
     return appointmentId
@@ -269,11 +350,12 @@ export const markNoShow = mutation({
       throw new Error('Completed appointments cannot be marked no-show')
     }
 
-    await cancelReminderIfAny(ctx, appointment.reminderJobId)
+    await cancelRemindersIfAny(ctx, appointment)
 
     await ctx.db.patch(appointmentId, {
       status: 'no-show',
       reminderJobId: undefined,
+      therapistReminderJobId: undefined,
     })
 
     return appointmentId
@@ -295,7 +377,7 @@ export const completeAppointment = mutation({
       throw new Error('Cancelled appointments cannot be completed')
     }
 
-    await cancelReminderIfAny(ctx, appointment.reminderJobId)
+    await cancelRemindersIfAny(ctx, appointment)
 
     const visitId = await insertCompletedVisit(ctx, {
       clinicId: appointment.clinicId,
@@ -310,6 +392,7 @@ export const completeAppointment = mutation({
       visitId,
       completedAt: Date.now(),
       reminderJobId: undefined,
+      therapistReminderJobId: undefined,
     })
 
     return visitId

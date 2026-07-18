@@ -3,11 +3,13 @@ import { Route as RootRoute } from './__root'
 import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
-import { CheckCircle2, AlertCircle } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Phone, MessageCircle } from 'lucide-react'
 import { IconBadge } from '@/components/ui/icon-badge'
 
 const fieldClass =
   'w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50 placeholder:text-muted-foreground'
+
+const FLEXIBLE_TIME = "I'm Flexible with the timing"
 
 function toLocalDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -23,6 +25,7 @@ function BookAppointmentPage() {
   const [email, setEmail] = useState('')
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
+  const [therapistId, setTherapistId] = useState('')
   const [reason, setReason] = useState('')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -50,6 +53,7 @@ function BookAppointmentPage() {
 
   const today = new Date()
   const minDate = toLocalDateStr(today)
+  const tomorrowStr = toLocalDateStr(new Date(today.getTime() + 24 * 60 * 60 * 1000))
   const maxDateObj = new Date(today)
   maxDateObj.setDate(maxDateObj.getDate() + info.windowDays)
   const maxDate = toLocalDateStr(maxDateObj)
@@ -59,6 +63,9 @@ function BookAppointmentPage() {
     const day = new Date(`${dateStr}T00:00:00`).getDay()
     return info.closedDays.includes(day)
   }
+
+  const callHref = info.contactPhone ? `tel:${info.contactPhone.replace(/\s+/g, '')}` : null
+  const waHref = info.whatsappNumber ? `https://wa.me/${info.whatsappNumber.replace(/\D/g, '')}` : null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -90,6 +97,7 @@ function BookAppointmentPage() {
         email: email.trim() || undefined,
         preferredDate: date,
         preferredTime: time,
+        preferredTherapistId: (therapistId || undefined) as any,
         reason,
         notes: notes.trim() || undefined,
       })
@@ -137,6 +145,34 @@ function BookAppointmentPage() {
           <p className="text-sm text-muted-foreground">
             Thank you. Your appointment request has been received. We will contact you shortly to confirm your appointment.
           </p>
+
+          {(callHref || waHref) && (
+            <div className="mt-6 space-y-2 border-t border-border pt-6">
+              <p className="text-xs font-medium text-muted-foreground">Need to reach us directly?</p>
+              <div className="flex justify-center gap-2">
+                {callHref && (
+                  <a
+                    href={callHref}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-input px-4 py-2 text-sm font-medium transition hover:bg-accent"
+                  >
+                    <Phone className="h-3.5 w-3.5" />
+                    Call {info.contactPhone}
+                  </a>
+                )}
+                {waHref && (
+                  <a
+                    href={waHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-input px-4 py-2 text-sm font-medium transition hover:bg-accent"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    WhatsApp
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -145,7 +181,7 @@ function BookAppointmentPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
-        <h1 className="mb-6 text-2xl font-semibold text-primary">Make an Appointment</h1>
+        <h1 className="mb-6 text-2xl font-semibold text-primary">Request an Appointment</h1>
         <form onSubmit={handleSubmit} className="space-y-3">
           <input
             placeholder="Patient Name *"
@@ -162,26 +198,59 @@ function BookAppointmentPage() {
             disabled={submitting}
             className={fieldClass}
           />
-          <div className="grid grid-cols-2 gap-3">
-            <input
-              type="date"
-              min={minDate}
-              max={maxDate}
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              disabled={submitting}
-              className={fieldClass}
-            />
-            <select value={time} onChange={(e) => setTime(e.target.value)} disabled={submitting} className={fieldClass}>
-              <option value="">Time *</option>
-              {info.timeSlots.map((slot: string) => (
-                <option key={slot} value={slot}>
-                  {slot}
-                </option>
-              ))}
-            </select>
+
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground">Preferred Date *</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={submitting || minDate > maxDate || isClosedDay(minDate)}
+                onClick={() => setDate(minDate)}
+                className={`flex-1 rounded-xl border px-3 py-2 text-xs font-medium transition disabled:opacity-40 ${
+                  date === minDate ? 'border-primary bg-primary/10 text-primary' : 'border-input hover:bg-accent'
+                }`}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                disabled={submitting || tomorrowStr > maxDate || isClosedDay(tomorrowStr)}
+                onClick={() => setDate(tomorrowStr)}
+                className={`flex-1 rounded-xl border px-3 py-2 text-xs font-medium transition disabled:opacity-40 ${
+                  date === tomorrowStr ? 'border-primary bg-primary/10 text-primary' : 'border-input hover:bg-accent'
+                }`}
+              >
+                Tomorrow
+              </button>
+              <span
+                className={`flex-1 rounded-xl border px-1 py-1 text-xs font-medium transition ${
+                  date && date !== minDate && date !== tomorrowStr ? 'border-primary bg-primary/10 text-primary' : 'border-input'
+                }`}
+              >
+                <input
+                  type="date"
+                  min={minDate}
+                  max={maxDate}
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  disabled={submitting}
+                  className="w-full bg-transparent px-1.5 py-1 text-xs outline-none disabled:opacity-50"
+                  aria-label="Choose a date"
+                />
+              </span>
+            </div>
+            {date && isClosedDay(date) && <p className="text-xs text-destructive">The clinic is closed on this day.</p>}
           </div>
-          {date && isClosedDay(date) && <p className="text-xs text-destructive">The clinic is closed on this day.</p>}
+
+          <select value={time} onChange={(e) => setTime(e.target.value)} disabled={submitting} className={fieldClass}>
+            <option value="">Preferred Time *</option>
+            {info.timeSlots.map((slot: string) => (
+              <option key={slot} value={slot}>
+                {slot}
+              </option>
+            ))}
+            <option value={FLEXIBLE_TIME}>{FLEXIBLE_TIME}</option>
+          </select>
 
           {info.services.length > 0 ? (
             <select value={reason} onChange={(e) => setReason(e.target.value)} disabled={submitting} className={fieldClass}>
@@ -200,6 +269,17 @@ function BookAppointmentPage() {
               disabled={submitting}
               className={fieldClass}
             />
+          )}
+
+          {info.therapists.length > 0 && (
+            <select value={therapistId} onChange={(e) => setTherapistId(e.target.value)} disabled={submitting} className={fieldClass}>
+              <option value="">Preferred Therapist/Doctor (optional)</option>
+              {info.therapists.map((t: { _id: string; name: string }) => (
+                <option key={t._id} value={t._id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
           )}
 
           <input
@@ -228,6 +308,23 @@ function BookAppointmentPage() {
           >
             {submitting ? 'Submitting…' : 'Request Appointment'}
           </button>
+
+          {(callHref || waHref) && (
+            <p className="pt-1 text-center text-xs text-muted-foreground">
+              Prefer to talk to us directly?{' '}
+              {callHref && (
+                <a href={callHref} className="font-medium text-primary hover:underline">
+                  Call {info.contactPhone}
+                </a>
+              )}
+              {callHref && waHref && ' · '}
+              {waHref && (
+                <a href={waHref} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">
+                  WhatsApp us
+                </a>
+              )}
+            </p>
+          )}
         </form>
       </div>
     </div>

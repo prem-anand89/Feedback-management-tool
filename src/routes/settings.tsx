@@ -6,9 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Pencil, X, Check, Copy } from 'lucide-react'
+import { Pencil, X, Check, Copy, UserPlus, Trash2 } from 'lucide-react'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+
+const STAFF_ROLES = ['therapist', 'receptionist', 'owner'] as const
+type StaffRole = (typeof STAFF_ROLES)[number]
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -32,7 +35,10 @@ function SettingsPage() {
   const { isAuthenticated } = useConvexAuth()
   const staffUser = useQuery(api.clinics.getMyStaffUser, isAuthenticated ? {} : 'skip')
   const clinic = useQuery(api.clinics.getMyClinic, staffUser ? {} : 'skip')
+  const staffList = useQuery(api.clinics.listStaff, staffUser ? {} : 'skip') ?? []
   const updateClinicSettings = useMutation(api.clinics.updateClinicSettings)
+  const addProvider = useMutation(api.clinics.addProvider)
+  const removeStaffMember = useMutation(api.clinics.removeStaffMember)
 
   const [settings, setSettings] = useState<ClinicSettings | null>(null)
   const [newService, setNewService] = useState('')
@@ -41,7 +47,49 @@ function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
 
+  const [newProviderName, setNewProviderName] = useState('')
+  const [newProviderEmail, setNewProviderEmail] = useState('')
+  const [newProviderRole, setNewProviderRole] = useState<StaffRole>('therapist')
+  const [isAddingProvider, setIsAddingProvider] = useState(false)
+  const [teamError, setTeamError] = useState('')
+
   const isOwner = staffUser?.role === 'owner'
+
+  const handleAddProvider = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newProviderName.trim()) {
+      setTeamError('Name is required')
+      return
+    }
+    setIsAddingProvider(true)
+    setTeamError('')
+    try {
+      await addProvider({
+        name: newProviderName.trim(),
+        email: newProviderEmail.trim() || undefined,
+        role: newProviderRole,
+      })
+      setNewProviderName('')
+      setNewProviderEmail('')
+      setNewProviderRole('therapist')
+    } catch (err) {
+      setTeamError(err instanceof Error ? err.message : 'Failed to add provider')
+    } finally {
+      setIsAddingProvider(false)
+    }
+  }
+
+  const handleRemoveStaff = async (staffId: string, name: string) => {
+    if (!window.confirm(`Remove ${name} from the team? They'll no longer appear in scheduling or booking. Their past appointments and visits are kept.`)) {
+      return
+    }
+    setTeamError('')
+    try {
+      await removeStaffMember({ staffId: staffId as any })
+    } catch (err) {
+      setTeamError(err instanceof Error ? err.message : 'Failed to remove')
+    }
+  }
 
   useEffect(() => {
     if (clinic && !settings) {
@@ -175,7 +223,8 @@ function SettingsPage() {
             <TabsList>
               <TabsTrigger value="profile">Clinic Profile</TabsTrigger>
               <TabsTrigger value="booking">Booking &amp; Reminders</TabsTrigger>
-              <TabsTrigger value="automation">Automation &amp; Templates</TabsTrigger>
+              <TabsTrigger value="automation">Feedback Automation</TabsTrigger>
+              <TabsTrigger value="team">Team</TabsTrigger>
             </TabsList>
 
             <TabsContent value="profile" className="space-y-6">
@@ -192,26 +241,6 @@ function SettingsPage() {
                       value={settings.clinicName}
                       onChange={(e) => setSettings({ ...settings, clinicName: e.target.value })}
                       disabled={!isOwner}
-                      className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Google Review Integration</CardTitle>
-                  <CardDescription>Configure your clinic's Google Review link</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Google Review URL</label>
-                    <input
-                      type="url"
-                      value={settings.googleReviewUrl}
-                      onChange={(e) => isOwner && setSettings({ ...settings, googleReviewUrl: e.target.value })}
-                      disabled={!isOwner}
-                      placeholder="https://google.com/maps/place/..."
                       className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                     />
                   </div>
@@ -465,6 +494,26 @@ function SettingsPage() {
             <TabsContent value="automation" className="space-y-6">
               <Card>
                 <CardHeader>
+                  <CardTitle>Google Review Integration</CardTitle>
+                  <CardDescription>Configure your clinic's Google Review link</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Google Review URL</label>
+                    <input
+                      type="url"
+                      value={settings.googleReviewUrl}
+                      onChange={(e) => isOwner && setSettings({ ...settings, googleReviewUrl: e.target.value })}
+                      disabled={!isOwner}
+                      placeholder="https://google.com/maps/place/..."
+                      className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
                   <CardTitle>Automation Settings</CardTitle>
                   <CardDescription>Configure feedback request timing</CardDescription>
                 </CardHeader>
@@ -532,6 +581,104 @@ function SettingsPage() {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="team" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Team</CardTitle>
+                  <CardDescription>
+                    Providers appear in scheduling and as options on your public booking form. Adding someone here
+                    doesn't give them dashboard access — that requires them to sign up separately and be linked to
+                    your clinic (not available yet).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {staffList.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No team members yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {staffList.map((member) => {
+                        const hasLogin = !member.userId.startsWith('provider_')
+                        return (
+                          <div key={member._id} className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
+                            <div>
+                              <p className="text-sm font-medium">
+                                {member.name}
+                                {member._id === staffUser?._id && <span className="text-muted-foreground"> (you)</span>}
+                              </p>
+                              <p className="text-xs capitalize text-muted-foreground">
+                                {member.role}
+                                {member.email && <> · {member.email}</>}
+                                {!hasLogin && <> · No dashboard login</>}
+                              </p>
+                            </div>
+                            {isOwner && member._id !== staffUser?._id && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => handleRemoveStaff(member._id, member.name)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {isOwner && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Add a Provider</CardTitle>
+                    <CardDescription>e.g. another therapist or doctor at your clinic</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleAddProvider} className="grid gap-3 sm:grid-cols-2">
+                      <input
+                        placeholder="Name *"
+                        value={newProviderName}
+                        onChange={(e) => setNewProviderName(e.target.value)}
+                        disabled={isAddingProvider}
+                        className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50 sm:col-span-2"
+                      />
+                      <input
+                        type="email"
+                        placeholder="Email (optional)"
+                        value={newProviderEmail}
+                        onChange={(e) => setNewProviderEmail(e.target.value)}
+                        disabled={isAddingProvider}
+                        className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                      />
+                      <select
+                        value={newProviderRole}
+                        onChange={(e) => setNewProviderRole(e.target.value as StaffRole)}
+                        disabled={isAddingProvider}
+                        className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                      >
+                        {STAFF_ROLES.map((role) => (
+                          <option key={role} value={role} className="capitalize">
+                            {role}
+                          </option>
+                        ))}
+                      </select>
+
+                      {teamError && (
+                        <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive sm:col-span-2">{teamError}</div>
+                      )}
+
+                      <Button type="submit" disabled={isAddingProvider} className="sm:col-span-2">
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        {isAddingProvider ? 'Adding...' : 'Add Provider'}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
           </Tabs>
 

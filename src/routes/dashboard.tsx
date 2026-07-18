@@ -2,8 +2,9 @@ import { createRoute, Link } from '@tanstack/react-router'
 import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { MessageSquare, Clock, Star, Globe, AlertCircle, CheckCircle, CalendarClock, MessageSquareText } from 'lucide-react'
-import { useQuery, useConvexAuth } from 'convex/react'
+import { Button } from '@/components/ui/button'
+import { MessageSquare, Clock, Star, Globe, AlertCircle, CheckCircle, CalendarClock, MessageSquareText, CheckCircle2 } from 'lucide-react'
+import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { IconBadge } from '@/components/ui/icon-badge'
 import { Badge, type BadgeVariant } from '@/components/ui/badge'
@@ -65,12 +66,20 @@ function DashboardPage() {
   const patients = useQuery(api.patients.listPatients, staffUser ? {} : 'skip') ?? []
   const staffList = useQuery(api.clinics.listStaff, staffUser ? {} : 'skip') ?? []
   const reviewStats = useQuery(api.reviews.getReviewStats, staffUser ? {} : 'skip')
+  const completeAppointment = useMutation(api.appointments.completeAppointment)
 
   const patientName = (id: string) => patients.find((p) => p._id === id)?.name ?? 'Unknown patient'
   const therapistName = (id: string) => staffList.find((s) => s._id === id)?.name ?? 'Unassigned'
 
   const todaysAppointments = upcomingAppointments
     .filter((a) => new Date(a.scheduledAt).toDateString() === new Date().toDateString())
+    .sort((a, b) => a.scheduledAt - b.scheduledAt)
+
+  // Past their scheduled time but never marked complete or cancelled — the
+  // feedback pipeline only fires on completion, so these are silently
+  // stuck unless a human notices and acts.
+  const awaitingCompletion = upcomingAppointments
+    .filter((a) => a.scheduledAt < Date.now())
     .sort((a, b) => a.scheduledAt - b.scheduledAt)
 
   const todayFeedback = feedbackRequests.filter((f) => {
@@ -120,6 +129,11 @@ function DashboardPage() {
             <CardTitle>No clinic set up yet</CardTitle>
             <CardDescription>Your account isn't linked to a clinic. Set one up to start collecting feedback.</CardDescription>
           </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link to="/setup">Set up your clinic</Link>
+            </Button>
+          </CardContent>
         </Card>
       </StaffLayout>
     )
@@ -167,7 +181,49 @@ function DashboardPage() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        {awaitingCompletion.length > 0 && (
+          <Card className="border-chipAmber-foreground/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <CheckCircle2 className="h-4 w-4 text-chipAmber-foreground" />
+                Awaiting Completion
+                <span className="rounded-full bg-chipAmber px-2 py-0.5 text-xs font-semibold text-chipAmber-foreground">
+                  {awaitingCompletion.length}
+                </span>
+              </CardTitle>
+              <CardDescription>
+                These appointments have passed but were never marked complete — feedback won't be requested until they are.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1">
+                {awaitingCompletion.slice(0, 6).map((appt) => (
+                  <div key={appt._id} className="flex items-center gap-3 border-b border-border py-3 last:border-0">
+                    <IconBadge icon={Clock} size="xs" colorClassName="bg-chipAmber text-chipAmber-foreground" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{patientName(appt.patientId)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {therapistName(appt.therapistId)} · {new Date(appt.scheduledAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                      </p>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => completeAppointment({ appointmentId: appt._id })}>
+                      Complete
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              {awaitingCompletion.length > 6 && (
+                <Link to="/appointments" className="mt-2 inline-block text-xs font-medium text-primary hover:underline">
+                  View all {awaitingCompletion.length} in Appointments →
+                </Link>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <MetricCard icon={CalendarClock} color="blue" value={todaysAppointments.length} label="Today's Appointments" />
+          <MetricCard icon={MessageSquareText} color="purple" value={pendingRequests.length} label="Pending Requests" />
           <MetricCard icon={MessageSquare} color="blue" value={todayFeedback} label="Today's Feedback" />
           <MetricCard icon={Clock} color="amber" value={pendingFeedback} label="Pending Feedback" />
           <MetricCard icon={Star} color="green" value={`${avgRating} / 5`} label="Average Rating" />

@@ -2,10 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#4A2B50" />
     <title>CareConnect</title>
+    <script>
+      // Applied before the app mounts to avoid a flash of the wrong theme.
+      // Falls back to OS preference (via index.css's prefers-color-scheme
+      // block) when the user hasn't explicitly chosen a theme.
+      (function () {
+        var stored = localStorage.getItem('careconnect-theme')
+        if (stored === 'light' || stored === 'dark') {
+          document.documentElement.classList.add(stored)
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

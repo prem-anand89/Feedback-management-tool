@@ -118,6 +118,63 @@ export const notifyFeedbackResponse = internalAction({
   },
 })
 
+// Companion to whatsapp.sendAppointmentReminder — same lead time, but to the
+// assigned therapist/doctor rather than the patient, and by email since
+// staffUsers has no phone field (matches this app's existing convention of
+// email for staff-facing notifications, WhatsApp spend reserved for
+// patient-facing messages only).
+export const sendTherapistAppointmentReminder = internalAction({
+  args: {
+    appointmentId: v.id('appointments'),
+    clinicId: v.id('clinics'),
+    patientId: v.id('patients'),
+    therapistId: v.id('staffUsers'),
+  },
+  handler: async (ctx, { appointmentId, clinicId, patientId, therapistId }) => {
+    const appointment = await ctx.runQuery(internal.appointments.getAppointmentInternal, { appointmentId })
+    if (!appointment || appointment.status !== 'scheduled') {
+      return { success: false, error: 'Appointment no longer scheduled' }
+    }
+
+    const therapist = await ctx.runQuery(internal.clinics.getStaffUserInternal, { staffId: therapistId })
+    const patient = await ctx.runQuery(internal.patients.getPatientInternal, { patientId })
+    const clinic = await ctx.runQuery(internal.clinics.getClinic, { clinicId })
+    if (!therapist || !patient || !clinic) {
+      return { success: false, error: 'Therapist, patient, or clinic not found' }
+    }
+    if (!therapist.email) {
+      // Providers added without a real login (clinics.addProvider) have no
+      // email — nothing to send to, and not an error worth logging as one.
+      return { success: false, error: 'Therapist has no email on file' }
+    }
+
+    const when = new Date(appointment.scheduledAt).toLocaleString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+
+    const subject = `Upcoming appointment: ${patient.name} at ${when}`
+    const html = `
+      <h2>Appointment Reminder</h2>
+      <p>Hi ${therapist.name},</p>
+      <p>You have an upcoming appointment with <strong>${patient.name}</strong> (${patient.phone}) at <strong>${clinic.name}</strong>.</p>
+      <p><strong>When:</strong> ${when}</p>
+      ${appointment.serviceContext ? `<p><strong>Reason:</strong> ${appointment.serviceContext}</p>` : ''}
+      <p>
+        <a href="${DASHBOARD_URL}/appointments" style="background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+          View in Appointments
+        </a>
+      </p>
+    `
+
+    const success = await sendEmail(therapist.email, subject, html)
+    return { success, appointmentId }
+  },
+})
+
 export const sendWelcomeEmail = internalAction({
   args: {
     staffEmail: v.string(),

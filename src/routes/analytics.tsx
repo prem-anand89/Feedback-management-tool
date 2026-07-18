@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { createRoute } from '@tanstack/react-router'
 import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useQuery, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+
+const RatingTrendChart = lazy(() => import('@/components/analytics/rating-trend-chart'))
 
 type Period = 'daily' | 'weekly' | 'monthly'
 
@@ -118,23 +119,9 @@ function AnalyticsPage() {
             <CardTitle>Average rating trend</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={320}>
-              <LineChart data={trend} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
-                <YAxis domain={[0, 5]} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
-                <Tooltip
-                  contentStyle={{
-                    background: 'hsl(var(--popover))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: 12,
-                    color: 'hsl(var(--popover-foreground))',
-                    fontSize: 12,
-                  }}
-                />
-                <Line type="monotone" dataKey="rating" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 4, fill: 'hsl(var(--primary))', strokeWidth: 0 }} connectNulls />
-              </LineChart>
-            </ResponsiveContainer>
+            <Suspense fallback={<div className="flex h-[320px] items-center justify-center text-sm text-muted-foreground">Loading chart…</div>}>
+              <RatingTrendChart data={trend} />
+            </Suspense>
           </CardContent>
         </Card>
       </div>

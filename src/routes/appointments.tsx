@@ -8,6 +8,8 @@ import { CalendarClock, Plus, Clock, CheckCircle2, XCircle, MessageSquareText } 
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { IconBadge } from '@/components/ui/icon-badge'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { WeekView } from '@/components/appointments/week-view'
 
 const inputClass =
   'w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50'
@@ -28,6 +30,13 @@ function dayLabel(ts: number) {
   if (sameDay(date, today)) return 'Today'
   if (sameDay(date, tomorrow)) return 'Tomorrow'
   return date.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })
+}
+
+function startOfWeek(d: Date): Date {
+  const x = new Date(d)
+  x.setHours(0, 0, 0, 0)
+  x.setDate(x.getDate() - x.getDay())
+  return x
 }
 
 // "09:00 AM" / "02:30 PM" -> "09:00" / "14:30", for prefilling a
@@ -72,15 +81,26 @@ function AppointmentsPage() {
   const [confirmDateTime, setConfirmDateTime] = useState('')
   const [confirmTherapistId, setConfirmTherapistId] = useState('')
   const [error, setError] = useState('')
+  const [viewMode, setViewMode] = useState<'list' | 'week'>('list')
+  const [weekOffset, setWeekOffset] = useState(0)
+  const [therapistFilter, setTherapistFilter] = useState('')
 
   const patientName = (id: string) => patients.find((p) => p._id === id)?.name ?? 'Unknown patient'
   const therapistName = (id: string) => staffList.find((s) => s._id === id)?.name ?? 'Unassigned'
 
-  const grouped = upcoming.reduce((acc: Record<string, any[]>, appt: any) => {
+  const filteredUpcoming = therapistFilter ? upcoming.filter((a: any) => a.therapistId === therapistFilter) : upcoming
+
+  const grouped = filteredUpcoming.reduce((acc: Record<string, any[]>, appt: any) => {
     const key = new Date(appt.scheduledAt).toDateString()
     acc[key] = acc[key] ? [...acc[key], appt] : [appt]
     return acc
   }, {} as Record<string, any[]>)
+
+  const weekStart = (() => {
+    const base = startOfWeek(new Date())
+    base.setDate(base.getDate() + weekOffset * 7)
+    return base
+  })()
 
   const handleSchedule = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -130,7 +150,7 @@ function AppointmentsPage() {
   const startConfirmRequest = (request: any) => {
     setConfirmingRequestId(request._id)
     setConfirmDateTime(`${request.preferredDate}T${slotTo24h(request.preferredTime)}`)
-    setConfirmTherapistId('')
+    setConfirmTherapistId(request.preferredTherapistId ?? '')
   }
 
   const commitConfirmRequest = async (requestId: string) => {
@@ -138,6 +158,13 @@ function AppointmentsPage() {
       setError('Pick a therapist before confirming')
       return
     }
+    const request = pendingRequests.find((r: any) => r._id === requestId)
+
+    // Open a blank tab synchronously, inside the click gesture — most
+    // browsers block window.open() called after an awaited async call, so we
+    // reserve the tab now and point it at WhatsApp once confirmation saves.
+    const waTab = request ? window.open('', '_blank') : null
+
     try {
       await confirmAppointmentRequest({
         requestId: requestId as any,
@@ -145,7 +172,16 @@ function AppointmentsPage() {
         scheduledAt: new Date(confirmDateTime).getTime(),
       })
       setConfirmingRequestId(null)
+
+      if (request && waTab) {
+        const when = new Date(confirmDateTime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+        const message = `Hi ${request.patientName}, your appointment at ${clinic?.name ?? 'our clinic'} is confirmed for ${when} with ${therapistName(confirmTherapistId)}. See you then!`
+        waTab.location.href = `https://wa.me/${request.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`
+      } else {
+        waTab?.close()
+      }
     } catch (err) {
+      waTab?.close()
       setError(err instanceof Error ? err.message : 'Failed to confirm request')
     }
   }
@@ -205,6 +241,7 @@ function AppointmentsPage() {
                       <p className="text-xs text-muted-foreground">
                         Requested {req.preferredDate} at {req.preferredTime}
                         {req.reason && <> · {req.reason}</>}
+                        {req.preferredTherapistId && <> · Prefers {therapistName(req.preferredTherapistId)}</>}
                       </p>
                       {req.notes && <p className="text-xs text-muted-foreground">"{req.notes}"</p>}
                     </div>
@@ -245,7 +282,7 @@ function AppointmentsPage() {
                       </select>
                       <div className="flex gap-2">
                         <Button size="sm" onClick={() => commitConfirmRequest(req._id)}>
-                          Save
+                          Confirm &amp; Notify
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => setConfirmingRequestId(null)}>
                           Cancel
@@ -327,7 +364,36 @@ function AppointmentsPage() {
           </Card>
         )}
 
-        {upcoming.length === 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'list' | 'week')}>
+            <TabsList>
+              <TabsTrigger value="list">List</TabsTrigger>
+              <TabsTrigger value="week">Week</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          {staffList.length > 1 && (
+            <select value={therapistFilter} onChange={(e) => setTherapistFilter(e.target.value)} className={`${inputClass} w-auto`}>
+              <option value="">All providers</option>
+              {staffList.map((staff) => (
+                <option key={staff._id} value={staff._id}>
+                  {staff.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {viewMode === 'week' ? (
+          <WeekView
+            weekStart={weekStart}
+            appointments={filteredUpcoming}
+            patientName={patientName}
+            therapistName={therapistName}
+            onPrevWeek={() => setWeekOffset((w) => w - 1)}
+            onNextWeek={() => setWeekOffset((w) => w + 1)}
+            onToday={() => setWeekOffset(0)}
+          />
+        ) : filteredUpcoming.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center gap-2 py-10 text-center">
               <IconBadge icon={CalendarClock} size="md" />

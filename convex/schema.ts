@@ -99,6 +99,10 @@ export default defineSchema({
     // appointment is rescheduled or cancelled before the reminder fires.
     // Stored as a string (not v.id) since it references a system table.
     reminderJobId: v.optional(v.string()),
+    // Same idea, for the companion email reminder sent to the assigned
+    // therapist/doctor — tracked separately so either can be cancelled
+    // independently (e.g. if reassigned to a different therapist).
+    therapistReminderJobId: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index('by_clinic', ['clinicId'])
@@ -118,7 +122,8 @@ export default defineSchema({
     phone: v.string(),
     email: v.optional(v.string()),
     preferredDate: v.string(), // "YYYY-MM-DD"
-    preferredTime: v.string(), // e.g. "09:00 AM", from the clinic's slot list
+    preferredTime: v.string(), // e.g. "09:00 AM", "I'm Flexible", from the clinic's slot list
+    preferredTherapistId: v.optional(v.id('staffUsers')),
     reason: v.optional(v.string()),
     notes: v.optional(v.string()),
     status: v.union(
