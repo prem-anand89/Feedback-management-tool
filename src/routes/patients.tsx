@@ -423,12 +423,12 @@ function PatientsPage() {
   return (
     <StaffLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Patients</h1>
             <p className="text-muted-foreground">Visit → feedback → resolution history at a glance.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {isOwner && (
               <Button asChild variant="outline">
                 <Link to="/patients/import">
