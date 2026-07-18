@@ -11,6 +11,7 @@ import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { STAFF_ROLES, type StaffRole, roleLabel } from '@/lib/roles'
 import { AvailabilityEditor } from '@/components/settings/availability-editor'
+import { TimeSlotChips } from '@/components/settings/time-slot-chips'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -27,7 +28,7 @@ interface ClinicSettings {
   whatsappNumber: string
   whatsappAccessToken: string
   whatsappPhoneNumberId: string
-  bookingTimeSlotsText: string
+  bookingTimeSlots: string[]
   bookingClosedDays: number[]
   bookingWindowDays: string
 }
@@ -168,12 +169,10 @@ function SettingsPage() {
         // query resolves — getMyClinic never returns the raw token.
         whatsappAccessToken: '',
         whatsappPhoneNumberId: clinic.whatsappPhoneNumberId ?? '',
-        bookingTimeSlotsText: (
-          clinic.bookingTimeSlots ?? [
-            '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
-            '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM',
-          ]
-        ).join(', '),
+        bookingTimeSlots: clinic.bookingTimeSlots ?? [
+          '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
+          '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM',
+        ],
         bookingClosedDays: clinic.bookingClosedDays ?? [0],
         bookingWindowDays: String(clinic.bookingWindowDays ?? 90),
       })
@@ -226,6 +225,15 @@ function SettingsPage() {
 
   const cancelEditingService = () => setEditingIndex(null)
 
+  const toggleDefaultSlot = (slot: string) => {
+    if (!settings) return
+    const has = settings.bookingTimeSlots.includes(slot)
+    setSettings({
+      ...settings,
+      bookingTimeSlots: has ? settings.bookingTimeSlots.filter((s) => s !== slot) : [...settings.bookingTimeSlots, slot],
+    })
+  }
+
   const toggleClosedDay = (day: number) => {
     if (!settings) return
     const has = settings.bookingClosedDays.includes(day)
@@ -253,10 +261,7 @@ function SettingsPage() {
         whatsappNumber: settings.whatsappNumber || undefined,
         whatsappAccessToken: settings.whatsappAccessToken || undefined,
         whatsappPhoneNumberId: settings.whatsappPhoneNumberId || undefined,
-        bookingTimeSlots: settings.bookingTimeSlotsText
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
+        bookingTimeSlots: settings.bookingTimeSlots,
         bookingClosedDays: settings.bookingClosedDays,
         bookingWindowDays: Number(settings.bookingWindowDays),
       })
@@ -642,14 +647,11 @@ function SettingsPage() {
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Available Time Slots</label>
-                    <textarea
-                      value={settings.bookingTimeSlotsText}
-                      onChange={(e) => isOwner && setSettings({ ...settings, bookingTimeSlotsText: e.target.value })}
-                      disabled={!isOwner}
-                      rows={2}
-                      className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-                    />
-                    <p className="text-xs text-muted-foreground">Comma-separated, e.g. "09:00 AM, 09:30 AM, 02:00 PM"</p>
+                    <TimeSlotChips slots={settings.bookingTimeSlots} onToggle={toggleDefaultSlot} disabled={!isOwner} />
+                    <p className="text-xs text-muted-foreground">
+                      Tap times to toggle them on or off. This is the default schedule used on every open day, for any
+                      clinician left on "Clinic default hours" below.
+                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -699,7 +701,7 @@ function SettingsPage() {
                 <CardContent>
                   <AvailabilityEditor
                     clinicians={availabilityClinicians}
-                    defaultSlots={settings.bookingTimeSlotsText.split(',').map((s) => s.trim()).filter(Boolean)}
+                    defaultSlots={settings.bookingTimeSlots}
                     disabled={!isOwner}
                   />
                 </CardContent>
