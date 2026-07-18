@@ -1,14 +1,39 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createRoute, Link } from '@tanstack/react-router'
 import { Route as RootRoute } from './__root'
 import { StaffLayout } from '@/components/staff-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Phone, Plus, Stethoscope, Calendar, CalendarClock, MessageCircle, Star, XCircle, Archive, ArchiveRestore, Upload } from 'lucide-react'
+import {
+  Phone,
+  Plus,
+  Stethoscope,
+  Calendar,
+  CalendarClock,
+  MessageCircle,
+  Star,
+  XCircle,
+  Archive,
+  ArchiveRestore,
+  Upload,
+  Search,
+  Pencil,
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { IconBadge } from '@/components/ui/icon-badge'
 import { ScheduleAppointmentForm } from '@/components/appointments/schedule-appointment-form'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+
+const PAGE_SIZE = 15
+type SortBy = 'recent' | 'name' | 'lastVisit'
+
+function phoneDigits(phone: string) {
+  return phone.replace(/\D/g, '')
+}
 
 const inputClass =
   'w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50'
@@ -43,8 +68,12 @@ function PatientsPage() {
   const feedbackResponses = useQuery(api.feedback.listFeedbackResponses, isAuthenticated ? {} : 'skip') ?? []
   const feedbackRequests = useQuery(api.feedback.listFeedbackRequests, isAuthenticated ? {} : 'skip') ?? []
   const reviewRequests = useQuery(api.reviews.listReviewRequests, isAuthenticated ? {} : 'skip') ?? []
+  // Clinic-wide, already sorted ascending by scheduledAt — reused here to
+  // compute each patient's "next appointment" without an N+1 query.
+  const upcomingAppointments = useQuery(api.appointments.listUpcomingAppointments, isAuthenticated ? {} : 'skip') ?? []
 
   const createPatient = useMutation(api.patients.createPatient)
+  const updatePatient = useMutation(api.patients.updatePatient)
   const archivePatient = useMutation(api.patients.archivePatient)
   const unarchivePatient = useMutation(api.patients.unarchivePatient)
   const createVisit = useMutation(api.visits.createVisit)
@@ -53,11 +82,14 @@ function PatientsPage() {
   const cancelAppointment = useMutation(api.appointments.cancelAppointment)
 
   const services = clinic?.services ?? []
+  // Ownership is who created the clinic (clinics.ownerUserId), not a role.
+  const isOwner = !!clinic && !!staffUser && clinic.ownerUserId === staffUser.userId
 
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)
   const [showAddPatient, setShowAddPatient] = useState(false)
   const [showAddVisit, setShowAddVisit] = useState(false)
   const [showScheduleAppointment, setShowScheduleAppointment] = useState(false)
+  const [showEditPatient, setShowEditPatient] = useState(false)
   const [newPatientName, setNewPatientName] = useState('')
   const [newPatientEmail, setNewPatientEmail] = useState('')
   const [newPatientPhone, setNewPatientPhone] = useState('')
@@ -67,7 +99,69 @@ function PatientsPage() {
   const [error, setError] = useState('')
   const [copiedRequestId, setCopiedRequestId] = useState<string | null>(null)
 
+  const [editName, setEditName] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
+
+  const [search, setSearch] = useState('')
+  const [sortBy, setSortBy] = useState<SortBy>('recent')
+  const [page, setPage] = useState(0)
+
+  useEffect(() => {
+    setPage(0)
+  }, [search, sortBy, showArchived])
+
   const selected = selectedPatientId ? patients.find((p) => p._id === selectedPatientId) : null
+
+  const lastVisitByPatient = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const v of visits) {
+      if (!v.completedAt) continue
+      const prev = map.get(v.patientId)
+      if (!prev || v.completedAt > prev) map.set(v.patientId, v.completedAt)
+    }
+    return map
+  }, [visits])
+
+  const nextApptByPatient = useMemo(() => {
+    const map = new Map<string, (typeof upcomingAppointments)[number]>()
+    for (const a of upcomingAppointments) {
+      if (!map.has(a.patientId)) map.set(a.patientId, a)
+    }
+    return map
+  }, [upcomingAppointments])
+
+  // Patients sharing the same normalized phone digits are flagged as
+  // possible duplicates — display-only; there's no merge action, since
+  // reassigning visits/feedback/appointments across patient records is a
+  // bigger, riskier change than a hint belongs to.
+  const duplicatePhoneDigits = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const p of patients) {
+      const d = phoneDigits(p.phone)
+      counts.set(d, (counts.get(d) ?? 0) + 1)
+    }
+    return new Set([...counts.entries()].filter(([, c]) => c > 1).map(([d]) => d))
+  }, [patients])
+
+  const filteredPatients = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    const qDigits = phoneDigits(search)
+    const list = q
+      ? patients.filter((p) => p.name.toLowerCase().includes(q) || (qDigits && phoneDigits(p.phone).includes(qDigits)))
+      : patients
+
+    return [...list].sort((a, b) => {
+      if (sortBy === 'name') return a.name.localeCompare(b.name)
+      if (sortBy === 'lastVisit') return (lastVisitByPatient.get(b._id) ?? 0) - (lastVisitByPatient.get(a._id) ?? 0)
+      return b.createdAt - a.createdAt
+    })
+  }, [patients, search, sortBy, lastVisitByPatient])
+
+  const totalPages = Math.max(1, Math.ceil(filteredPatients.length / PAGE_SIZE))
+  const pagePatients = filteredPatients.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
   const patientVisits = selected ? visits.filter((v) => v.patientId === selected._id) : []
   const patientAppointments = useQuery(
     api.appointments.listAppointmentsForPatient,
@@ -230,6 +324,41 @@ function PatientsPage() {
     }
   }
 
+  const startEditPatient = () => {
+    if (!selected) return
+    setEditName(selected.name)
+    setEditPhone(selected.phone)
+    setEditEmail(selected.email ?? '')
+    setEditNotes(selected.notes ?? '')
+    setError('')
+    setShowEditPatient(true)
+  }
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selected) return
+    if (!editName.trim() || !editPhone.trim()) {
+      setError('Name and phone are required')
+      return
+    }
+    setIsSavingEdit(true)
+    setError('')
+    try {
+      await updatePatient({
+        patientId: selected._id,
+        name: editName.trim(),
+        phone: editPhone.trim(),
+        email: editEmail.trim() || undefined,
+        notes: editNotes.trim() || undefined,
+      })
+      setShowEditPatient(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save changes')
+    } finally {
+      setIsSavingEdit(false)
+    }
+  }
+
   const handleAddVisit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selected || !staffUser) {
@@ -283,7 +412,7 @@ function PatientsPage() {
             <p className="text-muted-foreground">Visit → feedback → resolution history at a glance.</p>
           </div>
           <div className="flex gap-2">
-            {staffUser?.role === 'owner' && (
+            {isOwner && (
               <Button asChild variant="outline">
                 <Link to="/patients/import">
                   <Upload className="mr-2 h-4 w-4" />
@@ -300,7 +429,7 @@ function PatientsPage() {
 
         <div className="grid gap-6 md:grid-cols-3">
           <Card className="md:col-span-1">
-            <CardHeader>
+            <CardHeader className="space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-xl">Patients</CardTitle>
@@ -316,43 +445,98 @@ function PatientsPage() {
                   {showArchived ? 'Hide archived' : 'Show archived'}
                 </button>
               </div>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search by name or phone…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full rounded-xl border border-input bg-background py-2 pl-9 pr-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortBy)}
+                className="w-full rounded-xl border border-input bg-background px-3 py-1.5 text-xs outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="recent">Sort: Recently added</option>
+                <option value="name">Sort: Name (A–Z)</option>
+                <option value="lastVisit">Sort: Last visit</option>
+              </select>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {patients.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No patients yet. Add one to get started.</p>
+                {filteredPatients.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    {patients.length === 0 ? 'No patients yet. Add one to get started.' : 'No patients match your search.'}
+                  </p>
                 ) : (
-                  patients.map((patient) => (
-                    <div
-                      key={patient._id}
-                      className={`flex items-center gap-2 rounded-xl border p-3 transition-colors ${
-                        selectedPatientId === patient._id
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:bg-accent'
-                      } ${patient.archivedAt ? 'opacity-60' : ''}`}
-                    >
-                      <button onClick={() => setSelectedPatientId(patient._id)} className="min-w-0 flex-1 text-left">
-                        <p className="truncate font-semibold">{patient.name}</p>
-                        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Phone className="h-3 w-3" />
-                          {patient.phone}
-                          {patient.archivedAt && <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">Archived</span>}
-                        </p>
-                      </button>
-                      {patient.archivedAt && (
-                        <Button
-                          onClick={() => handleUnarchivePatient(patient._id)}
-                          size="sm"
-                          variant="ghost"
-                          title="Unarchive"
-                        >
-                          <ArchiveRestore className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </div>
-                  ))
+                  pagePatients.map((patient) => {
+                    const lastVisit = lastVisitByPatient.get(patient._id)
+                    const nextAppt = nextApptByPatient.get(patient._id)
+                    const isDuplicate = duplicatePhoneDigits.has(phoneDigits(patient.phone))
+                    return (
+                      <div
+                        key={patient._id}
+                        className={`flex items-center gap-2 rounded-xl border p-3 transition-colors ${
+                          selectedPatientId === patient._id
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:bg-accent'
+                        } ${patient.archivedAt ? 'opacity-60' : ''}`}
+                      >
+                        <button onClick={() => setSelectedPatientId(patient._id)} className="min-w-0 flex-1 text-left">
+                          <p className="flex items-center gap-1.5 truncate font-semibold">
+                            {patient.name}
+                            {isDuplicate && (
+                              <span title="Another patient shares this phone number">
+                                <AlertTriangle className="h-3 w-3 shrink-0 text-chipAmber-foreground" />
+                              </span>
+                            )}
+                          </p>
+                          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Phone className="h-3 w-3" />
+                            {patient.phone}
+                            {patient.archivedAt && <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium">Archived</span>}
+                          </p>
+                          {(lastVisit || nextAppt) && (
+                            <p className="truncate text-[11px] text-muted-foreground">
+                              {nextAppt && <>Next {new Date(nextAppt.scheduledAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</>}
+                              {nextAppt && lastVisit && ' · '}
+                              {lastVisit && <>Last visit {new Date(lastVisit).toLocaleDateString([], { month: 'short', day: 'numeric' })}</>}
+                            </p>
+                          )}
+                        </button>
+                        {patient.archivedAt && (
+                          <Button
+                            onClick={() => handleUnarchivePatient(patient._id)}
+                            size="sm"
+                            variant="ghost"
+                            title="Unarchive"
+                          >
+                            <ArchiveRestore className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    )
+                  })
                 )}
               </div>
+              {totalPages > 1 && (
+                <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                  <Button size="sm" variant="ghost" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+                    <ChevronLeft className="mr-1 h-3.5 w-3.5" />
+                    Prev
+                  </Button>
+                  <span>
+                    Page {page + 1} of {totalPages}
+                  </span>
+                  <Button size="sm" variant="ghost" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)}>
+                    Next
+                    <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -361,9 +545,25 @@ function PatientsPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-xl">{selected.name}</CardTitle>
-                    <CardDescription>
-                      {selected.phone}
+                    <CardTitle className="flex items-center gap-1.5 text-xl">
+                      {selected.name}
+                      <button onClick={startEditPatient} title="Edit patient" className="text-muted-foreground hover:text-foreground">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    </CardTitle>
+                    <CardDescription className="flex items-center gap-2">
+                      <a href={`tel:${selected.phone}`} className="inline-flex items-center gap-1 hover:text-foreground hover:underline">
+                        <Phone className="h-3 w-3" />
+                        {selected.phone}
+                      </a>
+                      <button
+                        onClick={() => window.open(`https://wa.me/${phoneDigits(selected.phone)}`, '_blank')}
+                        title="Message on WhatsApp"
+                        className="inline-flex items-center gap-1 hover:text-foreground hover:underline"
+                      >
+                        <MessageCircle className="h-3 w-3" />
+                        WhatsApp
+                      </button>
                       {selected.email && <> · {selected.email}</>}
                     </CardDescription>
                   </div>
@@ -391,6 +591,12 @@ function PatientsPage() {
                 </div>
               </CardHeader>
               <CardContent>
+                {selected.notes && (
+                  <div className="mb-4 rounded-xl bg-muted p-3 text-sm">
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Notes</p>
+                    <p className="whitespace-pre-wrap">{selected.notes}</p>
+                  </div>
+                )}
                 {timeline.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No history yet. Schedule an appointment or log a visit to get started.</p>
                 ) : (
@@ -437,127 +643,176 @@ function PatientsPage() {
           )}
         </div>
 
-        {showAddPatient && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">Add New Patient</CardTitle>
-              <CardDescription>Phone is required. Email is optional — most clinics only need a phone number.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleAddPatient} className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Name</label>
-                    <input
-                      type="text"
-                      placeholder="Full name"
-                      value={newPatientName}
-                      onChange={(e) => setNewPatientName(e.target.value)}
-                      disabled={isLoadingPatient}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Phone</label>
-                    <input
-                      type="tel"
-                      placeholder="+1234567890"
-                      value={newPatientPhone}
-                      onChange={(e) => setNewPatientPhone(e.target.value)}
-                      disabled={isLoadingPatient}
-                      className={inputClass}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">
-                      Email <span className="font-normal text-muted-foreground">(optional)</span>
-                    </label>
-                    <input
-                      type="email"
-                      placeholder="email@example.com"
-                      value={newPatientEmail}
-                      onChange={(e) => setNewPatientEmail(e.target.value)}
-                      disabled={isLoadingPatient}
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-                {error && <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={isLoadingPatient}>
-                    {isLoadingPatient ? 'Adding...' : 'Add Patient'}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => setShowAddPatient(false)} disabled={isLoadingPatient}>
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-
-        {showScheduleAppointment && selected && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">Schedule Appointment for {selected.name}</CardTitle>
-              <CardDescription>
-                A WhatsApp reminder is sent automatically before the appointment (configurable in Settings).
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ScheduleAppointmentForm
-                patientId={selected._id}
-                services={services}
-                staffList={staffList}
-                onDone={() => setShowScheduleAppointment(false)}
-                onCancel={() => setShowScheduleAppointment(false)}
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {showAddVisit && selected && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">Log Visit for {selected.name}</CardTitle>
-              <CardDescription>Record which service the patient received so feedback is tied to the right treatment.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleAddVisit} className="space-y-4">
+        <Dialog open={showAddPatient} onOpenChange={setShowAddPatient}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Patient</DialogTitle>
+              <DialogDescription>Phone is required. Email is optional — most clinics only need a phone number.</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleAddPatient} className="space-y-4">
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Service / Treatment</label>
-                  <select
-                    value={visitService}
-                    onChange={(e) => setVisitService(e.target.value)}
-                    disabled={isLoadingVisit}
+                  <label className="text-sm font-medium">Name</label>
+                  <input
+                    type="text"
+                    placeholder="Full name"
+                    value={newPatientName}
+                    onChange={(e) => setNewPatientName(e.target.value)}
+                    disabled={isLoadingPatient}
                     className={inputClass}
-                  >
-                    <option value="">Select a service…</option>
-                    {services.map((service) => (
-                      <option key={service} value={service}>
-                        {service}
-                      </option>
-                    ))}
-                  </select>
-                  {services.length === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      No services configured yet. Add them in Settings → Services.
-                    </p>
-                  )}
+                  />
                 </div>
-                {error && <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={isLoadingVisit}>
-                    {isLoadingVisit ? 'Logging...' : 'Log Visit'}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => setShowAddVisit(false)} disabled={isLoadingVisit}>
-                    Cancel
-                  </Button>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Phone</label>
+                  <input
+                    type="tel"
+                    placeholder="+1234567890"
+                    value={newPatientPhone}
+                    onChange={(e) => setNewPatientPhone(e.target.value)}
+                    disabled={isLoadingPatient}
+                    className={inputClass}
+                  />
                 </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Email <span className="font-normal text-muted-foreground">(optional)</span>
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="email@example.com"
+                    value={newPatientEmail}
+                    onChange={(e) => setNewPatientEmail(e.target.value)}
+                    disabled={isLoadingPatient}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+              {error && <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+              <div className="flex gap-2">
+                <Button type="submit" disabled={isLoadingPatient}>
+                  {isLoadingPatient ? 'Adding...' : 'Add Patient'}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setShowAddPatient(false)} disabled={isLoadingPatient}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showEditPatient} onOpenChange={setShowEditPatient}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Patient</DialogTitle>
+              <DialogDescription>Fix a typo'd name, phone, or email, or add a staff-only note.</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Name</label>
+                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} disabled={isSavingEdit} className={inputClass} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Phone</label>
+                  <input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} disabled={isSavingEdit} className={inputClass} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Email <span className="font-normal text-muted-foreground">(optional)</span>
+                  </label>
+                  <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} disabled={isSavingEdit} className={inputClass} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Notes <span className="font-normal text-muted-foreground">(staff-only)</span>
+                  </label>
+                  <textarea
+                    placeholder="e.g. chronic back, prefers evenings"
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    disabled={isSavingEdit}
+                    rows={3}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+              {error && <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+              <div className="flex gap-2">
+                <Button type="submit" disabled={isSavingEdit}>
+                  {isSavingEdit ? 'Saving...' : 'Save Changes'}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setShowEditPatient(false)} disabled={isSavingEdit}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showScheduleAppointment && !!selected} onOpenChange={setShowScheduleAppointment}>
+          <DialogContent>
+            {selected && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Schedule Appointment for {selected.name}</DialogTitle>
+                  <DialogDescription>A WhatsApp reminder is sent automatically before the appointment (configurable in Settings).</DialogDescription>
+                </DialogHeader>
+                <ScheduleAppointmentForm
+                  patientId={selected._id}
+                  services={services}
+                  staffList={staffList}
+                  onDone={() => setShowScheduleAppointment(false)}
+                  onCancel={() => setShowScheduleAppointment(false)}
+                />
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showAddVisit && !!selected} onOpenChange={setShowAddVisit}>
+          <DialogContent>
+            {selected && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Log Visit for {selected.name}</DialogTitle>
+                  <DialogDescription>Record which service the patient received so feedback is tied to the right treatment.</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleAddVisit} className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Service / Treatment</label>
+                    <select
+                      value={visitService}
+                      onChange={(e) => setVisitService(e.target.value)}
+                      disabled={isLoadingVisit}
+                      className={inputClass}
+                    >
+                      <option value="">Select a service…</option>
+                      {services.map((service) => (
+                        <option key={service} value={service}>
+                          {service}
+                        </option>
+                      ))}
+                    </select>
+                    {services.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        No services configured yet. Add them in Settings → Services.
+                      </p>
+                    )}
+                  </div>
+                  {error && <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+                  <div className="flex gap-2">
+                    <Button type="submit" disabled={isLoadingVisit}>
+                      {isLoadingVisit ? 'Logging...' : 'Log Visit'}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setShowAddVisit(false)} disabled={isLoadingVisit}>
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </StaffLayout>
   )

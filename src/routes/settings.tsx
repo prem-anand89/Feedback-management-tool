@@ -9,9 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Pencil, X, Check, Copy, UserPlus, Trash2 } from 'lucide-react'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
-
-const STAFF_ROLES = ['therapist', 'receptionist', 'owner'] as const
-type StaffRole = (typeof STAFF_ROLES)[number]
+import { STAFF_ROLES, type StaffRole, roleLabel } from '@/lib/roles'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -62,7 +60,9 @@ function SettingsPage() {
   const [editRole, setEditRole] = useState<StaffRole>('therapist')
   const [isSavingStaffEdit, setIsSavingStaffEdit] = useState(false)
 
-  const isOwner = staffUser?.role === 'owner'
+  // Ownership is who created the clinic (clinics.ownerUserId), not a role —
+  // decoupled so the owner's job title displays the same as anyone else's.
+  const isOwner = !!clinic && !!staffUser && clinic.ownerUserId === staffUser.userId
 
   const handleAddProvider = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -102,12 +102,14 @@ function SettingsPage() {
     }
   }
 
-  const startEditStaff = (member: { _id: string; name: string; email: string; phone?: string; role: StaffRole }) => {
+  const startEditStaff = (member: { _id: string; name: string; email: string; phone?: string; role: string }) => {
     setEditingStaffId(member._id)
     setEditName(member.name)
     setEditEmail(member.email)
     setEditPhone(member.phone ?? '')
-    setEditRole(member.role)
+    // Legacy 'owner' rows don't match any selectable option — default the
+    // dropdown to Clinician/Therapist rather than showing nothing selected.
+    setEditRole((STAFF_ROLES as readonly string[]).includes(member.role) ? (member.role as StaffRole) : 'therapist')
     setTeamError('')
   }
 
@@ -401,10 +403,10 @@ function SettingsPage() {
                 <CardHeader>
                   <CardTitle>Team</CardTitle>
                   <CardDescription>
-                    Providers appear in scheduling and as options on your public booking form. Adding someone here
-                    doesn't give them dashboard access — that requires them to sign up separately and be linked to
-                    your clinic (not available yet). Add a phone number to send appointment reminders to a
-                    provider's WhatsApp instead of email.
+                    Clinicians/Therapists appear in scheduling and as options on your public booking form. Adding
+                    someone here doesn't give them dashboard access — that requires them to sign up separately and be
+                    linked to your clinic (not available yet). Add a phone number to send appointment reminders to a
+                    team member's WhatsApp instead of email.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -432,8 +434,8 @@ function SettingsPage() {
                                   className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                                 >
                                   {STAFF_ROLES.map((role) => (
-                                    <option key={role} value={role} className="capitalize">
-                                      {role}
+                                    <option key={role} value={role}>
+                                      {roleLabel(role)}
                                     </option>
                                   ))}
                                 </select>
@@ -473,7 +475,7 @@ function SettingsPage() {
                                 {member._id === staffUser?._id && <span className="text-muted-foreground"> (you)</span>}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                <span className="capitalize">{member.role}</span>
+                                <span>{roleLabel(member.role)}</span>
                                 {member.email && <> · {member.email}</>}
                                 {member.phone && <> · {member.phone}</>}
                                 {!hasLogin && <> · No dashboard login</>}
@@ -510,8 +512,8 @@ function SettingsPage() {
               {isOwner && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Add a Provider</CardTitle>
-                    <CardDescription>e.g. another therapist or doctor at your clinic</CardDescription>
+                    <CardTitle>Add Team Member</CardTitle>
+                    <CardDescription>e.g. another clinician, receptionist, or admin at your clinic</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <form onSubmit={handleAddProvider} className="grid gap-3 sm:grid-cols-2">
@@ -545,8 +547,8 @@ function SettingsPage() {
                         className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                       >
                         {STAFF_ROLES.map((role) => (
-                          <option key={role} value={role} className="capitalize">
-                            {role}
+                          <option key={role} value={role}>
+                            {roleLabel(role)}
                           </option>
                         ))}
                       </select>
@@ -557,7 +559,7 @@ function SettingsPage() {
 
                       <Button type="submit" disabled={isAddingProvider} className="sm:col-span-2">
                         <UserPlus className="mr-2 h-4 w-4" />
-                        {isAddingProvider ? 'Adding...' : 'Add Provider'}
+                        {isAddingProvider ? 'Adding...' : 'Add Team Member'}
                       </Button>
                     </form>
                   </CardContent>
@@ -728,7 +730,7 @@ function SettingsPage() {
                   <CardDescription>Configure feedback request timing</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {!isOwner && <div className="rounded-xl bg-secondary/15 p-3 text-sm text-secondary">You need Owner role to change these settings</div>}
+                  {!isOwner && <div className="rounded-xl bg-secondary/15 p-3 text-sm text-secondary">Only the clinic owner can change these settings</div>}
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Feedback Request Delay</label>

@@ -85,7 +85,10 @@ export const createClinic = mutation({
       userId: identity.subject,
       name: identity.name ?? resolvedEmail,
       email: resolvedEmail,
-      role: 'owner',
+      // Ownership comes from clinics.ownerUserId (set above), not this role —
+      // the clinic creator's job title defaults to Clinician/Therapist like
+      // anyone else's, editable in Settings just the same.
+      role: 'therapist',
       createdAt: Date.now(),
     })
 
@@ -126,15 +129,15 @@ export const updateClinicSettings = mutation({
 // Not called from any UI yet (no real Clerk-invite flow exists) — kept for
 // a future invite feature where the caller already knows the new staff
 // member's real Clerk userId. Note: this lets any owner insert an arbitrary
-// Clerk userId as staff, including role 'owner', with no verification that
-// the userId corresponds to a real account. Fine while unreachable from the
-// UI, but must gain proper verification before it's wired into one.
+// Clerk userId as staff with no verification that the userId corresponds to
+// a real account. Fine while unreachable from the UI, but must gain proper
+// verification before it's wired into one.
 export const addStaffMember = mutation({
   args: {
     userId: v.string(),
     name: v.string(),
     email: v.string(),
-    role: v.union(v.literal('owner'), v.literal('therapist'), v.literal('receptionist')),
+    role: v.union(v.literal('therapist'), v.literal('receptionist'), v.literal('admin'), v.literal('staff')),
   },
   handler: async (ctx, { userId, name, email, role }) => {
     const caller = await requireOwner(ctx)
@@ -171,7 +174,7 @@ export const addProvider = mutation({
     name: v.string(),
     email: v.optional(v.string()),
     phone: v.optional(v.string()),
-    role: v.union(v.literal('owner'), v.literal('therapist'), v.literal('receptionist')),
+    role: v.union(v.literal('therapist'), v.literal('receptionist'), v.literal('admin'), v.literal('staff')),
   },
   handler: async (ctx, { name, email, phone, role }) => {
     const caller = await requireOwner(ctx)

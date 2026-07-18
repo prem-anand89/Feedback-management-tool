@@ -92,7 +92,7 @@ export const notifyFeedbackResponse = internalAction({
   handler: async (ctx, { clinicId, rating }) => {
     const clinic = await ctx.runQuery(internal.clinics.getClinic, { clinicId })
     const staffUsers = await ctx.runQuery(internal.clinics.listStaffInternal, { clinicId })
-    const recipient = staffUsers.find((s) => s.role === 'owner') || staffUsers[0]
+    const recipient = staffUsers.find((s) => s.userId === clinic?.ownerUserId) || staffUsers[0]
     if (!clinic || !recipient) return { success: false }
 
     const staffEmail = recipient.email
