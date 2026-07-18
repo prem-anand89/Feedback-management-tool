@@ -6,6 +6,43 @@ import { requireStaffUser } from './lib/auth'
 import { insertCompletedVisit } from './visits'
 
 const DEFAULT_REMINDER_LEAD_HOURS = 24
+// Used only for overlap math when an appointment has no explicit duration
+// set — matches the same assumption the public booking form's fixed
+// half-hour/hour slot list implies.
+const DEFAULT_DURATION_MINUTES = 60
+
+// Standard interval-overlap check: two ranges overlap if each starts before
+// the other ends. Only considers 'scheduled' appointments for the same
+// therapist — cancelled/completed/no-show appointments no longer occupy a
+// slot, and a different therapist can legitimately see the same patient at
+// the same time (double-booking is a per-provider conflict, not a
+// per-patient or per-clinic one).
+async function findOverlappingAppointment(
+  ctx: MutationCtx,
+  args: {
+    therapistId: Id<'staffUsers'>
+    scheduledAt: number
+    durationMinutes?: number
+    excludeAppointmentId?: Id<'appointments'>
+  },
+): Promise<Doc<'appointments'> | undefined> {
+  const duration = (args.durationMinutes ?? DEFAULT_DURATION_MINUTES) * 60 * 1000
+  const start = args.scheduledAt
+  const end = start + duration
+
+  const appointments = await ctx.db
+    .query('appointments')
+    .withIndex('by_therapist', (idx) => idx.eq('therapistId', args.therapistId))
+    .collect()
+
+  return appointments.find((a) => {
+    if (a.status !== 'scheduled') return false
+    if (args.excludeAppointmentId && a._id === args.excludeAppointmentId) return false
+    const aDuration = (a.durationMinutes ?? DEFAULT_DURATION_MINUTES) * 60 * 1000
+    const aEnd = a.scheduledAt + aDuration
+    return start < aEnd && a.scheduledAt < end
+  })
+}
 
 // Schedules both the WhatsApp reminder to the patient and the companion
 // email reminder to the assigned therapist, returning each scheduled job's
@@ -161,6 +198,15 @@ export async function insertScheduledAppointment(
     notes?: string
   },
 ) {
+  const conflict = await findOverlappingAppointment(ctx, {
+    therapistId: args.therapistId,
+    scheduledAt: args.scheduledAt,
+    durationMinutes: args.durationMinutes,
+  })
+  if (conflict) {
+    throw new Error('This therapist already has an appointment scheduled during this time')
+  }
+
   const trimmedService = args.serviceContext?.trim()
   const appointmentId = await ctx.db.insert('appointments', {
     clinicId: args.clinicId,
@@ -236,6 +282,16 @@ export const rescheduleAppointment = mutation({
     }
     if (scheduledAt <= Date.now()) {
       throw new Error('Appointment time must be in the future')
+    }
+
+    const conflict = await findOverlappingAppointment(ctx, {
+      therapistId: appointment.therapistId,
+      scheduledAt,
+      durationMinutes: appointment.durationMinutes,
+      excludeAppointmentId: appointmentId,
+    })
+    if (conflict) {
+      throw new Error('This therapist already has an appointment scheduled during this time')
     }
 
     await cancelRemindersIfAny(ctx, appointment)
